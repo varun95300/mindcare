@@ -49,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: _RoleCard(
                       icon: Icons.person_outlined,
                       label: 'User',
-                      subtitle: 'Take a screening',
+                      subtitle: 'Find some support',
                       isSelected: _isPatient,
                       onTap: () => setState(() => _isPatient = true),
                     ),

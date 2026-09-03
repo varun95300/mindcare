@@ -33,6 +33,13 @@ class ConsultationRequest {
   ConsultationStatus status;
   final String? message; // Optional message from the user
 
+  /// Set when the psychologist accepts and schedules an appointment.
+  DateTime? scheduledAt;
+
+  /// A short note the psychologist writes to the patient upon accepting —
+  /// the patient sees this (unlike the screening result itself).
+  String? psychologistNote;
+
   ConsultationRequest({
     required this.id,
     required this.patientName,
@@ -42,6 +49,8 @@ class ConsultationRequest {
     required this.status,
     this.message,
     DateTime? requestedAt,
+    this.scheduledAt,
+    this.psychologistNote,
   }) : requestedAt = requestedAt ?? DateTime.now();
 
   /// Time ago string for display.
@@ -52,5 +61,28 @@ class ConsultationRequest {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${requestedAt.day}/${requestedAt.month}/${requestedAt.year}';
+  }
+
+  static const _weekdayNames = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+    'Friday', 'Saturday', 'Sunday',
+  ];
+  static const _monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  /// Human-readable label for the scheduled appointment, e.g.
+  /// "Monday, 15 Dec at 4:30 PM".
+  String? get scheduledAtLabel =>
+      scheduledAt == null ? null : formatDateTime(scheduledAt!);
+
+  static String formatDateTime(DateTime dt) {
+    final weekday = _weekdayNames[dt.weekday - 1];
+    final month = _monthNames[dt.month - 1];
+    final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour < 12 ? 'AM' : 'PM';
+    return '$weekday, ${dt.day} $month at $hour12:$minute $period';
   }
 }

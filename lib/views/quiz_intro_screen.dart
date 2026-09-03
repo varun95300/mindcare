@@ -14,7 +14,7 @@ class QuizIntroScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Screening'),
+        title: const Text('Check In'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -26,7 +26,7 @@ class QuizIntroScreen extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(MindCareTheme.spacingLg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,7 +39,7 @@ class QuizIntroScreen extends StatelessWidget {
               ),
               const SizedBox(height: MindCareTheme.spacingSm),
               Text(
-                'Let\'s take a quick mental wellness check.',
+                'Let\'s talk through how you\'ve been feeling lately.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: MindCareTheme.textSecondary,
                     ),
@@ -73,13 +73,13 @@ class QuizIntroScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: MindCareTheme.spacingSm),
                     _ExpectationItem(
-                      icon: Icons.visibility_outlined,
-                      text: 'See a clear explanation of your results',
+                      icon: Icons.lock_outline,
+                      text: 'Your answers are completely private',
                     ),
                     const SizedBox(height: MindCareTheme.spacingSm),
                     _ExpectationItem(
                       icon: Icons.people_outlined,
-                      text: 'Get matched with relevant professionals',
+                      text: 'Get matched with people who can help',
                     ),
                   ],
                 ),
@@ -98,7 +98,7 @@ class QuizIntroScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Areas We Screen',
+                      'What We\'ll Talk About',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: MindCareTheme.spacingMd),
@@ -124,7 +124,7 @@ class QuizIntroScreen extends StatelessWidget {
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: MindCareTheme.spacingLg),
 
               // Disclaimer
               Container(
@@ -146,7 +146,7 @@ class QuizIntroScreen extends StatelessWidget {
                     const SizedBox(width: MindCareTheme.spacingSm),
                     Expanded(
                       child: Text(
-                        'This is a screening tool, not a diagnosis. Results should be discussed with a professional.',
+                        'This isn\'t a diagnosis — just a starting point. What you share is only ever seen by the professional you choose to connect with.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               fontSize: 12,
                               color: MindCareTheme.textSecondary,
@@ -169,7 +169,7 @@ class QuizIntroScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
                 ),
-                child: const Text('Begin Screening'),
+                child: const Text('I\'m Ready to Begin'),
               ),
               const SizedBox(height: MindCareTheme.spacingMd),
             ],

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../models/psychologist.dart';
 import '../models/screening_result.dart';
+import '../models/consultation.dart';
 import '../services/auth_service.dart';
 import '../services/consultation_service.dart';
 
@@ -24,10 +25,11 @@ class PsychologistProfileScreen extends StatelessWidget {
     final consultationService = context.watch<ConsultationService>();
     final userName = auth.currentUser?.name ?? 'User';
     final userEmail = auth.currentUser?.email ?? '';
-    final alreadySent = consultationService.hasRequestFor(
+    final existingRequest = consultationService.requestFor(
       psychologist.id,
       userName,
     );
+    final alreadySent = existingRequest != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -129,44 +131,20 @@ class PsychologistProfileScreen extends StatelessWidget {
                         context, consultationService, userName, userEmail);
                   },
                   icon: const Icon(Icons.send_outlined),
-                  label: const Text('Send Consultation Request'),
+                  label: const Text('Reach Out'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 18),
                   ),
                 )
               else if (alreadySent)
-                Container(
-                  padding: const EdgeInsets.all(MindCareTheme.spacingMd),
-                  decoration: BoxDecoration(
-                    color: MindCareTheme.success.withOpacity(0.1),
-                    borderRadius:
-                        BorderRadius.circular(MindCareTheme.radiusMd),
-                    border: Border.all(
-                        color: MindCareTheme.success.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.check_circle,
-                          color: MindCareTheme.success, size: 22),
-                      const SizedBox(width: MindCareTheme.spacingSm),
-                      Text(
-                        'Consultation Request Sent',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: MindCareTheme.success,
-                                ),
-                      ),
-                    ],
-                  ),
-                )
+                _AlreadySentCard(request: existingRequest!)
               else
                 ElevatedButton.icon(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text(
-                            'Please complete a screening first to send a consultation request.'),
+                            'Please check in first so we can connect you properly.'),
                         backgroundColor: MindCareTheme.primary,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
@@ -177,7 +155,7 @@ class PsychologistProfileScreen extends StatelessWidget {
                     );
                   },
                   icon: const Icon(Icons.calendar_today_outlined),
-                  label: const Text('Book Consultation'),
+                  label: const Text('Connect'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 18),
                   ),
@@ -200,7 +178,7 @@ class PsychologistProfileScreen extends StatelessWidget {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Your screening report will be shared with the psychologist so they can prepare for your consultation.',
+                          'What you shared goes directly to this psychologist so they\'re prepared for you — you won\'t see it yourself, it\'s just for them.',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     fontSize: 12,
@@ -229,13 +207,13 @@ class PsychologistProfileScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
         ),
-        title: const Text('Send Consultation Request'),
+        title: const Text('Reach Out'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your screening report will be shared with ${psychologist.name} to help them understand your needs.',
+              'What you shared will be sent directly to ${psychologist.name} so they understand where you\'re coming from before you talk.',
               style: Theme.of(ctx).textTheme.bodyMedium,
             ),
             const SizedBox(height: MindCareTheme.spacingMd),
@@ -243,7 +221,7 @@ class PsychologistProfileScreen extends StatelessWidget {
               controller: messageController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Add a message (optional)',
+                hintText: 'Anything you\'d like them to know? (optional)',
                 filled: true,
                 fillColor: MindCareTheme.surfaceVariant,
                 border: OutlineInputBorder(
@@ -258,7 +236,7 @@ class PsychologistProfileScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Not Now'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -275,7 +253,7 @@ class PsychologistProfileScreen extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                      'Request sent to ${psychologist.name}! Your screening report has been shared.'),
+                      '${psychologist.name} will be in touch soon. You\'ve taken a great step.'),
                   backgroundColor: MindCareTheme.success,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
@@ -285,8 +263,93 @@ class PsychologistProfileScreen extends StatelessWidget {
                 ),
               );
             },
-            child: const Text('Send Request'),
+            child: const Text('Reach Out'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown when the patient has already reached out to this psychologist.
+/// If the psychologist has accepted and scheduled a time, that's shown
+/// here along with any note they left — this is the one place a patient
+/// hears back from their psychologist through the app.
+class _AlreadySentCard extends StatelessWidget {
+  final ConsultationRequest request;
+  const _AlreadySentCard({required this.request});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheduledLabel = request.scheduledAtLabel;
+
+    if (scheduledLabel == null) {
+      return Container(
+        padding: const EdgeInsets.all(MindCareTheme.spacingMd),
+        decoration: BoxDecoration(
+          color: MindCareTheme.success.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+          border: Border.all(color: MindCareTheme.success.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle,
+                color: MindCareTheme.success, size: 22),
+            const SizedBox(width: MindCareTheme.spacingSm),
+            Text(
+              'You\'ve reached out — they\'ll respond soon.',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: MindCareTheme.success,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(MindCareTheme.spacingLg),
+      decoration: BoxDecoration(
+        color: MindCareTheme.success.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
+        border: Border.all(color: MindCareTheme.success.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event_available,
+                  color: MindCareTheme.success, size: 22),
+              const SizedBox(width: MindCareTheme.spacingSm),
+              Expanded(
+                child: Text(
+                  'Your Appointment is Confirmed',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: MindCareTheme.success,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: MindCareTheme.spacingSm),
+          Text(
+            scheduledLabel,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          if (request.psychologistNote != null) ...[
+            const SizedBox(height: MindCareTheme.spacingSm),
+            Text(
+              '"${request.psychologistNote}"',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: MindCareTheme.textSecondary,
+                  ),
+            ),
+          ],
         ],
       ),
     );

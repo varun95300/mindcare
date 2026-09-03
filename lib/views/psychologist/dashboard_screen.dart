@@ -8,6 +8,7 @@ import '../../services/auth_service.dart';
 import '../../services/consultation_service.dart';
 import '../../data/seed_psychologists.dart';
 import 'patient_report_screen.dart';
+import 'schedule_appointment_screen.dart';
 
 class PsychologistDashboardScreen extends StatelessWidget {
   const PsychologistDashboardScreen({super.key});
@@ -444,6 +445,35 @@ class _ConsultationRequestCard extends StatelessWidget {
             ),
           ),
 
+          // Scheduled appointment confirmation
+          if (request.scheduledAt != null) ...[
+            const SizedBox(height: MindCareTheme.spacingSm),
+            Container(
+              padding: const EdgeInsets.all(MindCareTheme.spacingSm),
+              decoration: BoxDecoration(
+                color: MindCareTheme.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(MindCareTheme.radiusSm),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.event_available,
+                      size: 16, color: MindCareTheme.success),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      request.scheduledAtLabel!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: MindCareTheme.success,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // Message from patient
           if (request.message != null) ...[
             const SizedBox(height: MindCareTheme.spacingSm),
@@ -498,15 +528,10 @@ class _ConsultationRequestCard extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      context
-                          .read<ConsultationService>()
-                          .acceptRequest(request.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'Accepted request from ${request.patientName}'),
-                          backgroundColor: MindCareTheme.success,
-                          behavior: SnackBarBehavior.floating,
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ScheduleAppointmentScreen(request: request),
                         ),
                       );
                     },
@@ -514,7 +539,7 @@ class _ConsultationRequestCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       textStyle: const TextStyle(fontSize: 13),
                     ),
-                    child: const Text('Accept'),
+                    child: const Text('Accept & Schedule'),
                   ),
                 ),
               ] else

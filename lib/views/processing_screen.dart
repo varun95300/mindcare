@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../viewmodels/quiz_viewmodel.dart';
-import 'report_screen.dart';
+import 'screening_complete_screen.dart';
 
 class ProcessingScreen extends StatefulWidget {
   const ProcessingScreen({super.key});
@@ -56,7 +56,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
         Future.delayed(const Duration(milliseconds: 600), () {
           if (mounted) {
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const ReportScreen()),
+              MaterialPageRoute(builder: (_) => const ScreeningCompleteScreen()),
             );
           }
         });
@@ -74,12 +74,15 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(MindCareTheme.spacingXl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.all(MindCareTheme.spacingXl),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
               // Pulsing icon
               AnimatedBuilder(
                 animation: _pulseController,
@@ -143,7 +146,9 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                   );
                 }),
               ),
-            ],
+              ],
+              ),
+            ),
           ),
         ),
       ),

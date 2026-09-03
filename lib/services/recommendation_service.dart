@@ -84,12 +84,13 @@ class RecommendationService {
     List<ScreeningDomain> matchingSpecs,
   ) {
     if (matchingSpecs.length >= 2) {
-      return 'Recommended because ${psy.name} specializes in '
-          '${matchingSpecs.map((s) => s.label).join(" and ")}, '
-          'which match your screening profile.';
+      return '${psy.name} has experience with '
+          '${matchingSpecs.map((s) => s.label.toLowerCase()).join(" and ")}, '
+          'and could be a great fit for what you shared.';
     } else if (matchingSpecs.length == 1) {
-      return 'Recommended because ${psy.name} specializes in '
-          '${matchingSpecs.first.label}, your primary screening area.';
+      return '${psy.name} has experience with '
+          '${matchingSpecs.first.label.toLowerCase()}, '
+          'and could be a great fit for what you shared.';
     } else {
       return '${psy.name} is a highly rated professional who may be able to '
           'help with your concerns.';

@@ -15,6 +15,11 @@ class ScreeningResult {
   final String recommendation;
   final DateTime completedAt;
 
+  /// An optional free-text note the patient wrote in their own words,
+  /// captured right after the quiz. Only ever shown to the psychologist
+  /// they reach out to — never back to the patient.
+  String? patientNote;
+
   ScreeningResult({
     required this.primaryDomain,
     this.secondaryDomain,
@@ -26,6 +31,7 @@ class ScreeningResult {
     required this.disclaimer,
     required this.recommendation,
     DateTime? completedAt,
+    this.patientNote,
   }) : completedAt = completedAt ?? DateTime.now();
 
   /// Number of questions answered.

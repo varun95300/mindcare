@@ -120,4 +120,12 @@ class QuizViewModel extends ChangeNotifier {
     _isProcessing = false;
     notifyListeners();
   }
+
+  /// Attach an optional free-text note the patient wrote in their own
+  /// words. Only ever shown to the psychologist they reach out to.
+  void setPatientNote(String note) {
+    final trimmed = note.trim();
+    _result?.patientNote = trimmed.isEmpty ? null : trimmed;
+    notifyListeners();
+  }
 }

@@ -26,14 +26,13 @@ class RecommendationsScreen extends StatelessWidget {
             children: [
               // Header
               Text(
-                'Based on Your Screening',
+                'People Who Can Help',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: MindCareTheme.spacingSm),
               Text(
-                'These professionals specialize in areas matching your screening profile: '
-                '${result.primaryDomain.label}'
-                '${result.secondaryDomain != null ? " and ${result.secondaryDomain!.label}" : ""}.',
+                'Based on what you shared, here are professionals we think could '
+                'be a good fit. Take your time, and reach out whenever you feel ready.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: MindCareTheme.spacingLg),

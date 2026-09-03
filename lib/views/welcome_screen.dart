@@ -9,11 +9,11 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(MindCareTheme.spacingLg),
           child: Column(
             children: [
-              const Spacer(flex: 2),
+              const SizedBox(height: MindCareTheme.spacingXxl),
 
               // Logo / Hero
               Container(
@@ -53,24 +53,24 @@ class WelcomeScreen extends StatelessWidget {
 
               // Features
               _FeatureItem(
-                icon: Icons.quiz_outlined,
-                title: 'Adaptive Screening',
-                subtitle: 'Personalized questions that adapt to your responses',
+                icon: Icons.chat_bubble_outline,
+                title: 'A Gentle Conversation',
+                subtitle: 'Questions that adjust to how you\'re feeling, at your pace',
               ),
               const SizedBox(height: MindCareTheme.spacingMd),
               _FeatureItem(
-                icon: Icons.analytics_outlined,
-                title: 'Explainable Results',
-                subtitle: 'Understand how your screening profile was determined',
+                icon: Icons.lock_outline,
+                title: 'Completely Private',
+                subtitle: 'Your answers are never shown back to you — only to the professional you choose',
               ),
               const SizedBox(height: MindCareTheme.spacingMd),
               _FeatureItem(
                 icon: Icons.people_outlined,
                 title: 'Professional Matching',
-                subtitle: 'Find specialists who match your screening profile',
+                subtitle: 'Find someone who understands what you\'re going through',
               ),
 
-              const Spacer(flex: 3),
+              const SizedBox(height: MindCareTheme.spacingXxl),
 
               // Get Started Button
               SizedBox(
@@ -91,7 +91,7 @@ class WelcomeScreen extends StatelessWidget {
 
               // Disclaimer
               Text(
-                'MindCare is a screening tool, not a diagnostic service.\nAlways consult a qualified professional for medical advice.',
+                'MindCare helps you find support — it doesn\'t diagnose.\nPlease reach out to a qualified professional for medical advice.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontSize: 12,

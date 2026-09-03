@@ -30,6 +30,13 @@ class PatientReportScreen extends StatelessWidget {
               _PatientInfoCard(request: request),
               const SizedBox(height: MindCareTheme.spacingLg),
 
+              // In their own words (only shown if the patient wrote one)
+              if (result.patientNote != null &&
+                  result.patientNote!.trim().isNotEmpty) ...[
+                _PatientNoteCard(note: result.patientNote!),
+                const SizedBox(height: MindCareTheme.spacingLg),
+              ],
+
               // Screening profile
               _ScreeningProfileCard(result: result),
               const SizedBox(height: MindCareTheme.spacingLg),
@@ -178,6 +185,48 @@ class _PatientInfoCard extends StatelessWidget {
                 ],
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows what the patient wrote in their own words, right after the quiz.
+/// This is free-text, not scored — it's meant to give the psychologist
+/// context in the patient's own voice, alongside the structured evidence.
+class _PatientNoteCard extends StatelessWidget {
+  final String note;
+  const _PatientNoteCard({required this.note});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(MindCareTheme.spacingLg),
+      decoration: BoxDecoration(
+        color: MindCareTheme.accent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
+        border: Border.all(color: MindCareTheme.accent.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.format_quote,
+                  size: 20, color: MindCareTheme.accent),
+              const SizedBox(width: MindCareTheme.spacingSm),
+              Text('In Their Own Words',
+                  style: Theme.of(context).textTheme.headlineSmall),
+            ],
+          ),
+          const SizedBox(height: MindCareTheme.spacingSm),
+          Text(
+            note,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  height: 1.6,
+                ),
           ),
         ],
       ),

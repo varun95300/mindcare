@@ -4,26 +4,31 @@ import 'package:google_fonts/google_fonts.dart';
 /// MindCare design system — calm, clean, empathetic.
 class MindCareTheme {
   // ===== COLORS =====
-  static const Color primary = Color(0xFF4ECDC4);       // Soft teal
-  static const Color primaryDark = Color(0xFF36B5AD);
-  static const Color primaryLight = Color(0xFFB2EFEB);
-  static const Color secondary = Color(0xFF6C63FF);      // Calm purple
-  static const Color accent = Color(0xFFFF6B6B);         // Warm coral
-  static const Color background = Color(0xFFF7F9FC);     // Off-white
+  // "Sage & Sand" — a calm, grounded palette for a mental-health-first app.
+  // One hue family throughout (sage green + warm neutrals) instead of
+  // several competing saturated colors, so the app reads as therapeutic
+  // rather than a generic consumer/SaaS product.
+  static const Color primary = Color(0xFF7A9E7E);       // Sage green
+  static const Color primaryDark = Color(0xFF5F8163);
+  static const Color primaryLight = Color(0xFFDCE8DD);
+  static const Color secondary = Color(0xFFB7A98A);      // Warm taupe
+  static const Color accent = Color(0xFFE8A87C);         // Soft terracotta
+  static const Color background = Color(0xFFFBF8F3);     // Warm cream
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF0F4F8);
-  static const Color textPrimary = Color(0xFF2D3436);
-  static const Color textSecondary = Color(0xFF636E72);
-  static const Color textLight = Color(0xFFB2BEC3);
-  static const Color error = Color(0xFFE17055);
-  static const Color success = Color(0xFF00B894);
-  static const Color warning = Color(0xFFFDCB6E);
+  static const Color surfaceVariant = Color(0xFFF4EFE6);
+  static const Color textPrimary = Color(0xFF3A3A35);    // Soft charcoal
+  static const Color textSecondary = Color(0xFF6B6B62);
+  static const Color textLight = Color(0xFFABABA0);
+  static const Color error = Color(0xFFC1584A);          // Muted brick
+  static const Color success = Color(0xFF5E8F5A);        // Leaf green
+  static const Color warning = Color(0xFFC9A661);        // Soft ochre
 
-  // Domain colors
-  static const Color anxietyColor = Color(0xFFFF7675);   // Warm red
-  static const Color depressionColor = Color(0xFF74B9FF); // Soft blue
-  static const Color stressColor = Color(0xFFFFA62F);     // Amber
-  static const Color interpersonalColor = Color(0xFFA29BFE); // Lavender
+  // Domain colors — tints within the same grounded family rather than
+  // unrelated hues, so the report screen doesn't feel alarmist.
+  static const Color anxietyColor = Color(0xFFC98A7A);      // Dusty clay
+  static const Color depressionColor = Color(0xFF7B93A8);   // Muted slate blue
+  static const Color stressColor = Color(0xFFC4A661);       // Soft ochre
+  static const Color interpersonalColor = Color(0xFF9B8AA6); // Muted mauve
 
   static Color domainColor(String domain) {
     switch (domain.toLowerCase()) {
@@ -43,13 +48,13 @@ class MindCareTheme {
 
   // ===== GRADIENTS =====
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+    colors: [Color(0xFF7A9E7E), Color(0xFF5F8163)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient heroGradient = LinearGradient(
-    colors: [Color(0xFF4ECDC4), Color(0xFF6C63FF)],
+    colors: [Color(0xFF7A9E7E), Color(0xFFE8A87C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -100,57 +105,57 @@ class MindCareTheme {
         onSurface: textPrimary,
       ),
       scaffoldBackgroundColor: background,
-      textTheme: GoogleFonts.interTextTheme().copyWith(
-        displayLarge: GoogleFonts.outfit(
+      textTheme: GoogleFonts.nunitoTextTheme().copyWith(
+        displayLarge: GoogleFonts.nunito(
           fontSize: 32,
+          fontWeight: FontWeight.w800,
+          color: textPrimary,
+        ),
+        displayMedium: GoogleFonts.nunito(
+          fontSize: 28,
           fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
-        displayMedium: GoogleFonts.outfit(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
-        headlineLarge: GoogleFonts.outfit(
+        headlineLarge: GoogleFonts.nunito(
           fontSize: 24,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
-        headlineMedium: GoogleFonts.outfit(
+        headlineMedium: GoogleFonts.nunito(
           fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
-        headlineSmall: GoogleFonts.outfit(
+        headlineSmall: GoogleFonts.nunito(
           fontSize: 18,
-          fontWeight: FontWeight.w500,
-          color: textPrimary,
-        ),
-        titleLarge: GoogleFonts.inter(
-          fontSize: 16,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        titleMedium: GoogleFonts.inter(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
+        titleLarge: GoogleFonts.nunito(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
-        bodyLarge: GoogleFonts.inter(
+        titleMedium: GoogleFonts.nunito(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
+        bodyLarge: GoogleFonts.nunito(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: textPrimary,
           height: 1.6,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: GoogleFonts.nunito(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: textSecondary,
           height: 1.5,
         ),
-        labelLarge: GoogleFonts.inter(
+        labelLarge: GoogleFonts.nunito(
           fontSize: 14,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: Colors.white,
         ),
       ),
@@ -163,9 +168,9 @@ class MindCareTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
-          textStyle: GoogleFonts.inter(
+          textStyle: GoogleFonts.nunito(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -190,9 +195,9 @@ class MindCareTheme {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.outfit(
+        titleTextStyle: GoogleFonts.nunito(
           fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
         iconTheme: const IconThemeData(color: textPrimary),

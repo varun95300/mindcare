@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../models/quiz_question.dart';
 import '../viewmodels/quiz_viewmodel.dart';
-import 'processing_screen.dart';
+import 'share_more_screen.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key});
@@ -48,9 +48,9 @@ class _QuizScreenState extends State<QuizScreen>
     vm.submitAnswer();
 
     if (vm.result != null) {
-      // Quiz complete — go to processing screen
+      // Quiz complete — offer an optional space to share more first
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const ProcessingScreen()),
+        MaterialPageRoute(builder: (_) => const ShareMoreScreen()),
       );
     } else {
       // Animate to next question
@@ -97,32 +97,35 @@ class _QuizScreenState extends State<QuizScreen>
                       opacity: _fadeAnimation,
                       child: SlideTransition(
                         position: _slideAnimation,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Question text
-                            Text(
-                              question.text,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
-                                  ?.copyWith(height: 1.4),
-                            ),
-                            const SizedBox(height: MindCareTheme.spacingXl),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Question text
+                              Text(
+                                question.text,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(height: 1.4),
+                              ),
+                              const SizedBox(height: MindCareTheme.spacingXl),
 
-                            // Answer options
-                            ...LikertResponse.values.map(
-                              (response) => Padding(
-                                padding: const EdgeInsets.only(
-                                    bottom: MindCareTheme.spacingSm),
-                                child: _AnswerOption(
-                                  response: response,
-                                  isSelected: vm.selectedResponse == response,
-                                  onTap: () => vm.selectResponse(response),
+                              // Answer options
+                              ...LikertResponse.values.map(
+                                (response) => Padding(
+                                  padding: const EdgeInsets.only(
+                                      bottom: MindCareTheme.spacingSm),
+                                  child: _AnswerOption(
+                                    response: response,
+                                    isSelected:
+                                        vm.selectedResponse == response,
+                                    onTap: () => vm.selectResponse(response),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -261,14 +264,6 @@ class _AnswerOption extends StatelessWidget {
                           isSelected ? FontWeight.w600 : FontWeight.w400,
                     ),
               ),
-            ),
-            // Score indicator (subtle)
-            Text(
-              '${response.value}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: MindCareTheme.textLight.withOpacity(0.5),
-                    fontSize: 12,
-                  ),
             ),
           ],
         ),
