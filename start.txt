@@ -1,0 +1,18 @@
+Since the previous background process was torn down, here's how to run it yourself in a normal terminal:
+
+Open a new terminal window (PowerShell or cmd) — must be a new one, since Flutter was just added to PATH partway through this session and existing terminals won't have picked that up.
+Navigate to the project:
+
+cd "C:\Users\Shuchi\Desktop\papa work\Mindcare"
+Run it:
+
+flutter run -d chrome
+(First launch may take ~30-60s to connect.)
+If flutter isn't recognized in the new terminal, check with where flutter — it should resolve to D:\flutter\bin\flutter.bat. If not, you can always fall back to the full path directly: D:\flutter\bin\flutter run -d chrome.
+
+Other useful commands from that same terminal:
+
+flutter run -d windows — runs as a native Windows desktop app instead of in Chrome
+flutter analyze — checks for errors/warnings
+q (while flutter run is active) — quits the running app cleanly
+Want me to start it here again in the background as well, or are you going to run it in your own terminal from now on?
