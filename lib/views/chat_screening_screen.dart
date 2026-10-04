@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../viewmodels/chat_viewmodel.dart';
 import '../services/auth_service.dart';
+import '../services/voice_input_service.dart';
 import '../models/chat_message.dart';
 import '../config/theme.dart';
 
@@ -24,12 +25,15 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   late ChatViewModel _viewModel;
+  final VoiceInputService _voice = VoiceInputService();
   bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
     _viewModel = ChatViewModel();
+    _voice.addListener(_onViewModelChanged);
+    _voice.init();
   }
 
   @override
@@ -67,13 +71,30 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
   void dispose() {
     _viewModel.removeListener(_onViewModelChanged);
     _viewModel.dispose();
+    _voice.removeListener(_onViewModelChanged);
+    _voice.dispose();
     _textController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
+  /// Toggle voice dictation. The transcript fills the text box so the user
+  /// can review or edit it, then send as usual.
+  void _toggleVoice() {
+    if (_voice.isListening) {
+      _voice.stop();
+      return;
+    }
+    _voice.start((text, isFinal) {
+      _textController.text = text;
+      _textController.selection =
+          TextSelection.collapsed(offset: text.length);
+    });
+  }
+
   void _handleSend() {
+    if (_voice.isListening) _voice.stop();
     final text = _textController.text.trim();
     if (text.isEmpty) return;
     _textController.clear();
@@ -335,7 +356,9 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                     color: MindCareTheme.textPrimary,
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Share how you feel...',
+                    hintText: _voice.isListening
+                        ? 'Listening...'
+                        : 'Share how you feel...',
                     hintStyle: GoogleFonts.inter(
                       fontSize: 14.5,
                       color: MindCareTheme.textSecondary
@@ -351,6 +374,19 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
               ),
             ),
             const SizedBox(width: 8),
+            if (_voice.isAvailable) ...[
+              IconButton(
+                tooltip: _voice.isListening ? 'Stop listening' : 'Speak',
+                icon: Icon(
+                  _voice.isListening ? Icons.stop_circle : Icons.mic_none,
+                  color: _voice.isListening
+                      ? MindCareTheme.error
+                      : MindCareTheme.primary,
+                ),
+                onPressed: _toggleVoice,
+              ),
+              const SizedBox(width: 4),
+            ],
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
