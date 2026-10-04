@@ -4,9 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
-import 'quiz_intro_screen.dart';
-import 'psychologist/dashboard_screen.dart';
 
+/// Sign in / create account. Username + password accounts are stored on this
+/// device (test build); Google sign-in and a one-tap demo login are also
+/// offered. After a successful login this screen just pops: the session gate
+/// in main.dart shows the right home screen.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -16,249 +18,235 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPatient = true;
-  bool _isSignUp = true; // true = sign up, false = sign in
+  bool _isSignUp = false;
   bool _obscurePassword = true;
+  bool _busy = false;
+
+  UserRole get _role => _isPatient ? UserRole.patient : UserRole.psychologist;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSubmit() async {
+  void _done(bool success) {
+    if (success && mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  Future<void> _submit() async {
     final auth = context.read<AuthService>();
     auth.clearError();
-
-    bool success;
-    if (_isSignUp) {
-      if (_isPatient && _nameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter your name')),
-        );
-        return;
-      }
-      success = await auth.signUp(
-        email: _emailController.text,
-        password: _passwordController.text,
-        name: _isPatient
-            ? _nameController.text.trim()
-            : 'Dr. Sarah Mitchell',
-        role: _isPatient ? UserRole.patient : UserRole.psychologist,
-        psychologistId: _isPatient ? null : 'psy_001',
-      );
-    } else {
-      success = await auth.signIn(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-    }
-
-    if (success && mounted) {
-      // Small delay to let auth state listener fire
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
-
-      final user = auth.currentUser;
-      if (user != null) {
-        if (user.role == UserRole.psychologist) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-                builder: (_) => const PsychologistDashboardScreen()),
+    setState(() => _busy = true);
+    final ok = _isSignUp
+        ? await auth.signUpLocal(
+            username: _usernameController.text,
+            password: _passwordController.text,
+            name: _nameController.text,
+            role: _role,
+          )
+        : await auth.signInLocal(
+            username: _usernameController.text,
+            password: _passwordController.text,
           );
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const QuizIntroScreen()),
-          );
-        }
-      }
-    }
+    if (mounted) setState(() => _busy = false);
+    _done(ok);
+  }
+
+  Future<void> _google() async {
+    final auth = context.read<AuthService>();
+    auth.clearError();
+    final ok = await auth.signInWithGoogle(
+      role: _role,
+      psychologistId: _isPatient ? null : 'psy_001',
+    );
+    _done(ok);
+  }
+
+  Future<void> _demo() async {
+    final auth = context.read<AuthService>();
+    final ok = await auth.signInAsDemo(_role);
+    _done(ok);
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
+    final busy = _busy || auth.isLoading;
 
     return Scaffold(
       backgroundColor: MindCareTheme.background,
-      appBar: AppBar(
-        title: Text(_isSignUp ? 'Create Account' : 'Sign In'),
-      ),
+      appBar: AppBar(title: Text(_isSignUp ? 'Create Account' : 'Sign In')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(MindCareTheme.spacingLg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: MindCareTheme.spacingMd),
-
-              // Role Selection
-              Text(
-                'I am a...',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: MindCareTheme.spacingMd),
-
-              Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(MindCareTheme.spacingLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: _RoleCard(
-                      icon: Icons.person_outlined,
-                      label: 'User',
-                      subtitle: 'Find some support',
-                      isSelected: _isPatient,
-                      onTap: () => setState(() => _isPatient = true),
-                    ),
-                  ),
-                  const SizedBox(width: MindCareTheme.spacingMd),
-                  Expanded(
-                    child: _RoleCard(
-                      icon: Icons.medical_services_outlined,
-                      label: 'Psychologist',
-                      subtitle: 'View dashboard',
-                      isSelected: !_isPatient,
-                      onTap: () => setState(() => _isPatient = false),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: MindCareTheme.spacingXl),
-
-              // Name input (patient sign-up only)
-              if (_isPatient && _isSignUp) ...[
-                Text(
-                  'Your Name',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: MindCareTheme.spacingSm),
-                TextField(
-                  controller: _nameController,
-                  decoration: _inputDecoration('Enter your name'),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: MindCareTheme.spacingMd),
-              ],
-
-              // Psychologist info
-              if (!_isPatient) ...[
-                Container(
-                  padding: const EdgeInsets.all(MindCareTheme.spacingMd),
-                  decoration: BoxDecoration(
-                    color: MindCareTheme.primaryLight.withValues(alpha: 0.3),
-                    borderRadius:
-                        BorderRadius.circular(MindCareTheme.radiusMd),
-                  ),
-                  child: Row(
+                  Text('I am a...',
+                      style: Theme.of(context).textTheme.headlineMedium),
+                  const SizedBox(height: MindCareTheme.spacingMd),
+                  Row(
                     children: [
-                      const Icon(Icons.info_outline,
-                          color: MindCareTheme.primaryDark, size: 20),
-                      const SizedBox(width: MindCareTheme.spacingSm),
                       Expanded(
-                        child: Text(
-                          _isSignUp
-                              ? 'You will be linked to the demo psychologist profile (Dr. Sarah Mitchell)'
-                              : 'Sign in with your psychologist account',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(color: MindCareTheme.primaryDark),
+                        child: _RoleCard(
+                          icon: Icons.person_outlined,
+                          label: 'User',
+                          subtitle: 'Find some support',
+                          isSelected: _isPatient,
+                          onTap: () => setState(() => _isPatient = true),
+                        ),
+                      ),
+                      const SizedBox(width: MindCareTheme.spacingMd),
+                      Expanded(
+                        child: _RoleCard(
+                          icon: Icons.medical_services_outlined,
+                          label: 'Psychologist',
+                          subtitle: 'View dashboard',
+                          isSelected: !_isPatient,
+                          onTap: () => setState(() => _isPatient = false),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: MindCareTheme.spacingMd),
-              ],
+                  const SizedBox(height: MindCareTheme.spacingXl),
 
-              // Email
-              Text('Email', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: MindCareTheme.spacingSm),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: _inputDecoration('your@email.com'),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: MindCareTheme.spacingMd),
-
-              // Password
-              Text('Password', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: MindCareTheme.spacingSm),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: _inputDecoration('At least 6 characters').copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: MindCareTheme.textSecondary,
+                  if (_isSignUp) ...[
+                    Text('Your Name',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: MindCareTheme.spacingSm),
+                    TextField(
+                      controller: _nameController,
+                      decoration: _inputDecoration('Enter your name'),
+                      textInputAction: TextInputAction.next,
                     ),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
+                    const SizedBox(height: MindCareTheme.spacingMd),
+                  ],
+
+                  Text('Username',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: MindCareTheme.spacingSm),
+                  TextField(
+                    controller: _usernameController,
+                    decoration: _inputDecoration('e.g. shuchi'),
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
                   ),
-                ),
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _handleSubmit(),
-              ),
-              const SizedBox(height: MindCareTheme.spacingSm),
+                  const SizedBox(height: MindCareTheme.spacingMd),
 
-              // Error message
-              if (auth.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    auth.error!,
-                    style: GoogleFonts.inter(
-                      color: MindCareTheme.error,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: MindCareTheme.spacingXl),
-
-              // Submit button
-              ElevatedButton(
-                onPressed: auth.isLoading ? null : _handleSubmit,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                ),
-                child: auth.isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                  Text('Password',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: MindCareTheme.spacingSm),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    decoration: _inputDecoration('At least 4 characters')
+                        .copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: MindCareTheme.textSecondary,
                         ),
-                      )
-                    : Text(_isSignUp ? 'Create Account' : 'Sign In'),
-              ),
-              const SizedBox(height: MindCareTheme.spacingMd),
-
-              // Toggle sign-up / sign-in
-              TextButton(
-                onPressed: () {
-                  setState(() => _isSignUp = !_isSignUp);
-                  auth.clearError();
-                },
-                child: Text(
-                  _isSignUp
-                      ? 'Already have an account? Sign In'
-                      : "Don't have an account? Sign Up",
-                  style: GoogleFonts.inter(
-                    color: MindCareTheme.primary,
-                    fontWeight: FontWeight.w500,
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
+                      ),
+                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => busy ? null : _submit(),
                   ),
-                ),
+
+                  if (auth.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        auth.error!,
+                        style: GoogleFonts.inter(
+                          color: MindCareTheme.error,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: MindCareTheme.spacingLg),
+
+                  ElevatedButton(
+                    onPressed: busy ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                    ),
+                    child: busy
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(_isSignUp ? 'Create Account' : 'Sign In'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _isSignUp = !_isSignUp);
+                      auth.clearError();
+                    },
+                    child: Text(
+                      _isSignUp
+                          ? 'Already have an account? Sign In'
+                          : "Don't have an account? Create one",
+                      style: GoogleFonts.inter(
+                        color: MindCareTheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  const Divider(height: MindCareTheme.spacingXl),
+
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : _google,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    icon: const Icon(Icons.login),
+                    label: const Text('Continue with Google'),
+                  ),
+                  const SizedBox(height: MindCareTheme.spacingSm),
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : _demo,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    icon: const Icon(Icons.science_outlined),
+                    label: Text(_isPatient
+                        ? 'Quick demo login as User'
+                        : 'Quick demo login as Psychologist'),
+                  ),
+                  const SizedBox(height: MindCareTheme.spacingMd),
+                  Text(
+                    'Test build: accounts and data are saved on this device only. '
+                    'Your session stays saved when you switch between User and '
+                    'Psychologist.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(fontSize: 12),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

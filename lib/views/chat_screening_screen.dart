@@ -458,14 +458,14 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
         backgroundColor: MindCareTheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Leave Conversation?',
+          'Leave for now?',
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: MindCareTheme.textPrimary,
           ),
         ),
         content: Text(
-          'Your progress will be lost if you leave now.',
+          'Your progress is saved. You can resume this conversation any time.',
           style: GoogleFonts.inter(color: MindCareTheme.textSecondary),
         ),
         actions: [

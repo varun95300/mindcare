@@ -171,6 +171,12 @@ class RiskResult {
         'score': score,
         'flags': flags,
       };
+
+  factory RiskResult.fromMap(Map<String, dynamic> map) => RiskResult(
+        level: RiskLevel.fromName(map['level'] as String?),
+        score: (map['score'] as num?)?.toDouble() ?? 0,
+        flags: List<String>.from(map['flags'] as List? ?? const []),
+      );
 }
 
 /// Combined result of the whole text pipeline for one user message:

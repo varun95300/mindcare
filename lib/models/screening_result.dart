@@ -49,6 +49,59 @@ class ScreeningResult {
     this.selectionReasons = const [],
   }) : completedAt = completedAt ?? DateTime.now();
 
+  Map<String, dynamic> toJson() => {
+        'primaryDomain': primaryDomain.name,
+        'secondaryDomain': secondaryDomain?.name,
+        'normalizedScores':
+            normalizedScores.map((k, v) => MapEntry(k.name, v)),
+        'severityLabels': severityLabels.map((k, v) => MapEntry(k.name, v)),
+        'answers': answers.map((a) => a.toJson()).toList(),
+        'keyObservations': keyObservations,
+        'methodologyExplanation': methodologyExplanation,
+        'disclaimer': disclaimer,
+        'recommendation': recommendation,
+        'completedAt': completedAt.millisecondsSinceEpoch,
+        'patientNote': patientNote,
+        'peakRiskLevel': peakRiskLevel.name,
+        'riskFlags': riskFlags,
+        'emotionSummary': emotionSummary,
+        'selectionReasons': selectionReasons,
+      };
+
+  factory ScreeningResult.fromJson(Map<String, dynamic> json) {
+    ScreeningDomain domain(String name) => ScreeningDomain.values.byName(name);
+    return ScreeningResult(
+      primaryDomain: domain(json['primaryDomain'] as String),
+      secondaryDomain: json['secondaryDomain'] == null
+          ? null
+          : domain(json['secondaryDomain'] as String),
+      normalizedScores:
+          (json['normalizedScores'] as Map<String, dynamic>).map(
+        (k, v) => MapEntry(domain(k), (v as num).toDouble()),
+      ),
+      severityLabels: (json['severityLabels'] as Map<String, dynamic>)
+          .map((k, v) => MapEntry(domain(k), v as String)),
+      answers: (json['answers'] as List)
+          .map((a) => QuizAnswer.fromJson(a as Map<String, dynamic>))
+          .whereType<QuizAnswer>()
+          .toList(),
+      keyObservations: List<String>.from(json['keyObservations'] as List),
+      methodologyExplanation: json['methodologyExplanation'] as String,
+      disclaimer: json['disclaimer'] as String,
+      recommendation: json['recommendation'] as String,
+      completedAt:
+          DateTime.fromMillisecondsSinceEpoch(json['completedAt'] as int),
+      patientNote: json['patientNote'] as String?,
+      peakRiskLevel: RiskLevel.fromName(json['peakRiskLevel'] as String?),
+      riskFlags: List<String>.from(json['riskFlags'] as List? ?? const []),
+      emotionSummary:
+          (json['emotionSummary'] as Map<String, dynamic>? ?? const {})
+              .map((k, v) => MapEntry(k, (v as num).toDouble())),
+      selectionReasons:
+          List<String>.from(json['selectionReasons'] as List? ?? const []),
+    );
+  }
+
   /// Number of questions answered.
   int get totalQuestions => answers.length;
 

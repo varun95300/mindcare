@@ -53,6 +53,38 @@ class ConsultationRequest {
     this.psychologistNote,
   }) : requestedAt = requestedAt ?? DateTime.now();
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'patientName': patientName,
+        'patientEmail': patientEmail,
+        'psychologistId': psychologistId,
+        'screeningResult': screeningResult.toJson(),
+        'requestedAt': requestedAt.millisecondsSinceEpoch,
+        'status': status.name,
+        'message': message,
+        'scheduledAt': scheduledAt?.millisecondsSinceEpoch,
+        'psychologistNote': psychologistNote,
+      };
+
+  factory ConsultationRequest.fromJson(Map<String, dynamic> json) {
+    return ConsultationRequest(
+      id: json['id'] as String,
+      patientName: json['patientName'] as String,
+      patientEmail: json['patientEmail'] as String,
+      psychologistId: json['psychologistId'] as String,
+      screeningResult: ScreeningResult.fromJson(
+          json['screeningResult'] as Map<String, dynamic>),
+      requestedAt:
+          DateTime.fromMillisecondsSinceEpoch(json['requestedAt'] as int),
+      status: ConsultationStatus.values.byName(json['status'] as String),
+      message: json['message'] as String?,
+      scheduledAt: json['scheduledAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(json['scheduledAt'] as int),
+      psychologistNote: json['psychologistNote'] as String?,
+    );
+  }
+
   /// Time ago string for display.
   String get timeAgoLabel {
     final diff = DateTime.now().difference(requestedAt);

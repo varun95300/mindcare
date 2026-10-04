@@ -3,14 +3,50 @@ import '../models/consultation.dart';
 import '../models/screening_result.dart';
 import '../models/quiz_question.dart';
 import '../models/domain_evidence.dart';
+import 'local_store.dart';
 
-/// In-memory consultation service shared between user and psychologist views.
+/// Consultation service shared between user and psychologist views.
 /// Stores consultation requests so the psychologist can see user reports.
+///
+/// Requests are saved to the on-device [LocalStore] after every change, so
+/// they survive switching roles and restarting the app.
 class ConsultationService extends ChangeNotifier {
+  static const _collection = 'consultations';
   final List<ConsultationRequest> _requests = [];
 
   ConsultationService() {
+    _load();
+  }
+
+  /// Load saved requests; on the very first run, seed the demo ones.
+  Future<void> _load() async {
+    final store = LocalStore.instance;
+    if (await store.exists(_collection)) {
+      for (final doc in await store.readAll(_collection)) {
+        try {
+          _requests.add(ConsultationRequest.fromJson(doc));
+        } catch (e) {
+          debugPrint('Skipping unreadable saved request: $e');
+        }
+      }
+      notifyListeners();
+    } else {
+      addSeedRequests();
+      _persist();
+    }
+  }
+
+  void _persist() {
+    LocalStore.instance
+        .writeAll(_collection, _requests.map((r) => r.toJson()).toList());
+  }
+
+  /// Wipe saved data and go back to the seeded demo requests.
+  Future<void> resetDemoData() async {
+    _requests.clear();
+    await LocalStore.instance.clearAll();
     addSeedRequests();
+    _persist();
   }
 
   /// All consultation requests.
@@ -22,6 +58,21 @@ class ConsultationService extends ChangeNotifier {
         .where((r) => r.psychologistId == psychologistId)
         .toList()
       ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+  }
+
+  /// All requests a patient has sent (any psychologist), newest first.
+  List<ConsultationRequest> requestsForPatient(String patientEmail) {
+    return _requests
+        .where((r) => r.patientEmail == patientEmail)
+        .toList()
+      ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+  }
+
+  /// Delete every request a patient sent (used by "start a new session").
+  void removeForPatient(String patientEmail) {
+    _requests.removeWhere((r) => r.patientEmail == patientEmail);
+    _persist();
+    notifyListeners();
   }
 
   /// Check if a request already exists for this psychologist from this session.
@@ -68,6 +119,7 @@ class ConsultationService extends ChangeNotifier {
       message: message,
     );
     _requests.add(request);
+    _persist();
     notifyListeners();
     return request;
   }
@@ -76,6 +128,7 @@ class ConsultationService extends ChangeNotifier {
   void acceptRequest(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
     request.status = ConsultationStatus.accepted;
+    _persist();
     notifyListeners();
   }
 
@@ -90,6 +143,7 @@ class ConsultationService extends ChangeNotifier {
     request.status = ConsultationStatus.accepted;
     request.scheduledAt = scheduledAt;
     request.psychologistNote = note?.trim().isEmpty ?? true ? null : note!.trim();
+    _persist();
     notifyListeners();
   }
 
@@ -97,6 +151,7 @@ class ConsultationService extends ChangeNotifier {
   void declineRequest(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
     request.status = ConsultationStatus.declined;
+    _persist();
     notifyListeners();
   }
 

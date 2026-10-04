@@ -83,6 +83,39 @@ class AdaptiveEngine {
     });
   }
 
+  /// Everything needed to resume this conversation later.
+  Map<String, dynamic> sessionToJson() => {
+        'answers': answers.map((a) => a.toJson()).toList(),
+        'concernSignals':
+            concernSignals.map((k, v) => MapEntry(k.name, v)),
+        'peakRisk': peakRisk.toMap(),
+        'emotionTotals': emotionTotals.map((k, v) => MapEntry(k.name, v)),
+        'selectionReasons': selectionReasons,
+      };
+
+  /// Rebuild the engine from [sessionToJson] output. Evidence is recomputed
+  /// by replaying the saved answers.
+  void restoreSession(Map<String, dynamic> json) {
+    for (final raw in (json['answers'] as List? ?? const [])) {
+      final answer = QuizAnswer.fromJson(raw as Map<String, dynamic>);
+      if (answer != null) recordAnswer(answer.question, answer.response);
+    }
+    (json['concernSignals'] as Map<String, dynamic>? ?? const {})
+        .forEach((k, v) {
+      concernSignals[ScreeningDomain.values.byName(k)] =
+          (v as num).toDouble();
+    });
+    peakRisk = RiskResult.fromMap(
+        (json['peakRisk'] as Map<String, dynamic>?) ?? const {});
+    (json['emotionTotals'] as Map<String, dynamic>? ?? const {})
+        .forEach((k, v) {
+      emotionTotals[Emotion.values.byName(k)] = (v as num).toDouble();
+    });
+    selectionReasons
+      ..clear()
+      ..addAll(List<String>.from(json['selectionReasons'] as List? ?? const []));
+  }
+
   /// Select the next question based on current evidence.
   QuizQuestion? selectNextQuestion() {
     if (isComplete) return null;

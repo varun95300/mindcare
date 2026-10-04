@@ -11,7 +11,8 @@ import '../models/chat_message.dart';
 ///   screenings/{id}/chat_messages/{msgId} — chat conversation
 ///   consultations/{id}    — consultation requests
 class FirestoreService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  // Looked up on use so the app still starts if Firebase is unavailable.
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   // ═══════════════════════════════════════════════════════════════════
   // USERS
