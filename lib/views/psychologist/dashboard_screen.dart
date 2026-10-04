@@ -827,8 +827,8 @@ class _CompactRequest extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final reschedule = request.status == ConsultationStatus.rescheduleRequested;
 
-    final buttons = Row(
-      mainAxisSize: MainAxisSize.min,
+    final buttons = Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         TextButton(onPressed: onReport, child: const Text('Report')),
         FilledButton(

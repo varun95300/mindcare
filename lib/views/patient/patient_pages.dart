@@ -356,49 +356,54 @@ class _CheckInCardState extends State<_CheckInCard> {
                             'Feeling ${Moods.label(today?.mood ?? 2).toLowerCase()} today.',
                             style: text.bodyLarge,
                           ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: MindCareTheme.primary.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(
-                          MindCareTheme.radiusFull,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TweenAnimationBuilder<double>(
-                            tween: Tween(begin: 0, end: 1),
-                            duration: Motion.of(
-                              context,
-                              const Duration(milliseconds: 380),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
                             ),
-                            curve: Curves.easeOutBack,
-                            builder:
-                                (context, t, child) => Opacity(
-                                  opacity: t.clamp(0.0, 1.0),
-                                  child: Transform.scale(
-                                    scale: 0.4 + 0.6 * t,
-                                    child: child,
+                            decoration: BoxDecoration(
+                              color: MindCareTheme.primary.withValues(
+                                alpha: 0.4,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                MindCareTheme.radiusFull,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TweenAnimationBuilder<double>(
+                                  tween: Tween(begin: 0, end: 1),
+                                  duration: Motion.of(
+                                    context,
+                                    const Duration(milliseconds: 380),
+                                  ),
+                                  curve: Curves.easeOutBack,
+                                  builder:
+                                      (context, t, child) => Opacity(
+                                        opacity: t.clamp(0.0, 1.0),
+                                        child: Transform.scale(
+                                          scale: 0.4 + 0.6 * t,
+                                          child: child,
+                                        ),
+                                      ),
+                                  child: const Icon(
+                                    Icons.check_rounded,
+                                    size: 16,
+                                    color: MindCareTheme.primaryDark,
                                   ),
                                 ),
-                            child: const Icon(
-                              Icons.check_rounded,
-                              size: 16,
-                              color: MindCareTheme.primaryDark,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Checked in',
-                            style: text.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    'Checked in',
+                                    style: text.labelMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -1086,7 +1091,12 @@ class PatientProfilePage extends StatelessWidget {
                         color: MindCareTheme.primaryDark,
                       ),
                       const SizedBox(width: 10),
-                      Text('Your space, your privacy.', style: text.titleLarge),
+                      Expanded(
+                        child: Text(
+                          'Your space, your privacy.',
+                          style: text.titleLarge,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),

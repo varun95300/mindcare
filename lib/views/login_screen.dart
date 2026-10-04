@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
 import '../data/seed_psychologists.dart';
@@ -240,7 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.only(top: 12),
                         child: Text(
                           auth.error!,
-                          style: GoogleFonts.inter(
+                          style: MindCareTheme.inter(
                             color: MindCareTheme.error,
                             fontSize: 13,
                           ),
@@ -269,7 +268,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         _isSignUp
                             ? 'Already have an account? Sign In'
                             : "Don't have an account? Create one",
-                        style: GoogleFonts.inter(
+                        style: MindCareTheme.inter(
                           color: MindCareTheme.primary,
                           fontWeight: FontWeight.w500,
                         ),
@@ -326,51 +325,64 @@ class _LoginScreenState extends State<LoginScreen> {
             color: MindCareTheme.primary.withValues(alpha: 0.30),
             child: SoftBackdrop(
               animated: true,
-              child: Padding(
-                padding: const EdgeInsets.all(64),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const BrandMark(size: 52),
-                    const SizedBox(height: 32),
-                    Text(
-                      'A quiet place to check in with yourself.',
-                      style: text.displayLarge?.copyWith(
-                        fontSize: 38,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Talk through how you have been feeling, at your own pace, and find someone who can help.',
-                      style: text.bodyLarge?.copyWith(
-                        color: MindCareTheme.textSecondary,
-                        fontSize: 17,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    for (final line in const [
-                      'Chat in your own words, no forms',
-                      'Analysed on your device, shared only with your psychologist',
-                      'Book and manage appointments in one place',
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle_outline,
-                              color: MindCareTheme.primaryDark,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(child: Text(line, style: text.bodyLarge)),
-                          ],
+              child: LayoutBuilder(
+                builder:
+                    (context, c) => SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: c.maxHeight),
+                        child: Padding(
+                          padding: const EdgeInsets.all(64),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const BrandMark(size: 52),
+                              const SizedBox(height: 32),
+                              Text(
+                                'A quiet place to check in with yourself.',
+                                style: text.displayLarge?.copyWith(
+                                  fontSize: 38,
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Talk through how you have been feeling, at your own pace, and find someone who can help.',
+                                style: text.bodyLarge?.copyWith(
+                                  color: MindCareTheme.textSecondary,
+                                  fontSize: 17,
+                                ),
+                              ),
+                              const SizedBox(height: 40),
+                              for (final line in const [
+                                'Chat in your own words, no forms',
+                                'Analysed on your device, shared only with your psychologist',
+                                'Book and manage appointments in one place',
+                              ])
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 14),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle_outline,
+                                        color: MindCareTheme.primaryDark,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          line,
+                                          style: text.bodyLarge,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
               ),
             ),
           ),

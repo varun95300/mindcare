@@ -116,7 +116,7 @@ class _ConsultationChatScreenState extends State<ConsultationChatScreen> {
           children: [
             Avatar(otherName.replaceFirst('Dr. ', ''), size: 36),
             const SizedBox(width: 12),
-            Column(
+            Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(otherName, style: text.titleMedium?.copyWith(fontSize: 16)),
@@ -127,7 +127,7 @@ class _ConsultationChatScreenState extends State<ConsultationChatScreen> {
                   style: text.bodyMedium?.copyWith(fontSize: 12),
                 ),
               ],
-            ),
+            )),
           ],
         ),
       ),
@@ -154,10 +154,10 @@ class _ConsultationChatScreenState extends State<ConsultationChatScreen> {
                         const Icon(Icons.event_available,
                             size: 18, color: MindCareTheme.primaryDark),
                         const SizedBox(width: 8),
-                        Text('Session: ${request.scheduledAtLabel}',
+                        Expanded(child: Text('Session: ${request.scheduledAtLabel}',
                             style: text.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: MindCareTheme.primaryDark)),
+                                color: MindCareTheme.primaryDark))),
                       ],
                     ),
                   ),

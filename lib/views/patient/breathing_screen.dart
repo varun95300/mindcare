@@ -232,9 +232,10 @@ Future<void> showGroundingDialog(BuildContext context) {
           final done = i >= steps.length;
           final text = Theme.of(ctx).textTheme;
           return AlertDialog(
+            scrollable: true,
             title: Text(done ? 'Well done' : 'Grounding'),
-            content: SizedBox(
-              width: 360,
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
               child:
                   done
                       ? Text(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../viewmodels/chat_viewmodel.dart';
 import '../services/auth_service.dart';
 import '../services/voice_input_service.dart';
@@ -155,12 +154,12 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
         children: [
           const BrandMark(size: 36),
           const SizedBox(width: 12),
-          Column(
+          Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'MindCare',
-                style: GoogleFonts.dmSans(
+                style: MindCareTheme.dmSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: MindCareTheme.textPrimary,
@@ -168,7 +167,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
               ),
               Text(
                 _viewModel.isTyping ? 'typing...' : 'Wellness Check-in',
-                style: GoogleFonts.inter(
+                style: MindCareTheme.inter(
                   fontSize: 12,
                   color:
                       _viewModel.isTyping
@@ -177,7 +176,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                 ),
               ),
             ],
-          ),
+          )),
         ],
       ),
       bottom: PreferredSize(
@@ -276,7 +275,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                 ),
                 child: Text(
                   message.text,
-                  style: GoogleFonts.inter(
+                  style: MindCareTheme.inter(
                     fontSize: 14.5,
                     height: 1.45,
                     color: MindCareTheme.textPrimary,
@@ -356,7 +355,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
               side: BorderSide(
                 color: MindCareTheme.primary.withValues(alpha: 0.4),
               ),
-              labelStyle: GoogleFonts.inter(
+              labelStyle: MindCareTheme.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: MindCareTheme.primaryDark,
@@ -393,7 +392,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                     minLines: 1,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _handleSend(),
-                    style: GoogleFonts.inter(
+                    style: MindCareTheme.inter(
                       fontSize: 14.5,
                       color: MindCareTheme.textPrimary,
                     ),
@@ -402,7 +401,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                           _voice.isListening
                               ? 'Listening...'
                               : 'Or type your answer in your own words...',
-                      hintStyle: GoogleFonts.inter(
+                      hintStyle: MindCareTheme.inter(
                         fontSize: 14.5,
                         color: MindCareTheme.textSecondary.withValues(
                           alpha: 0.6,
@@ -479,7 +478,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
             ),
             child: Text(
               'View My Summary',
-              style: GoogleFonts.dmSans(
+              style: MindCareTheme.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -501,14 +500,14 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
             ),
             title: Text(
               'Leave for now?',
-              style: GoogleFonts.dmSans(
+              style: MindCareTheme.dmSans(
                 fontWeight: FontWeight.w600,
                 color: MindCareTheme.textPrimary,
               ),
             ),
             content: Text(
               'Your progress is saved. You can resume this conversation any time.',
-              style: GoogleFonts.inter(color: MindCareTheme.textSecondary),
+              style: MindCareTheme.inter(color: MindCareTheme.textSecondary),
             ),
             actions: [
               TextButton(

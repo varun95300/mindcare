@@ -609,8 +609,7 @@ class JournalComposerState extends State<JournalComposer> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     runSpacing: 12,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Wrap(
                         children: [
                           for (final m in Moods.pickerOrder)
                             Padding(

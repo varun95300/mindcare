@@ -125,10 +125,10 @@ class PatientReportScreen extends StatelessWidget {
                               color: MindCareTheme.secondary,
                             ),
                             const SizedBox(width: 6),
-                            Text(
+                            Expanded(child: Text(
                               'How This Screening Worked',
                               style: Theme.of(context).textTheme.titleMedium,
-                            ),
+                            )),
                           ],
                         ),
                         const SizedBox(height: MindCareTheme.spacingSm),
@@ -251,10 +251,10 @@ class _PatientNoteCard extends StatelessWidget {
                 color: MindCareTheme.accent,
               ),
               const SizedBox(width: MindCareTheme.spacingSm),
-              Text(
+              Expanded(child: Text(
                 'In Their Own Words',
                 style: Theme.of(context).textTheme.headlineSmall,
-              ),
+              )),
             ],
           ),
           const SizedBox(height: MindCareTheme.spacingSm),
@@ -370,10 +370,13 @@ class _DomainScoresCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        domain.label,
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Flexible(
+                        child: Text(
+                          domain.label,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Row(
                         children: [
                           Text(
@@ -458,10 +461,10 @@ class _ObservationsCard extends StatelessWidget {
                 size: 22,
               ),
               const SizedBox(width: MindCareTheme.spacingSm),
-              Text(
+              Expanded(child: Text(
                 'Key Observations',
                 style: Theme.of(context).textTheme.headlineSmall,
-              ),
+              )),
             ],
           ),
           const SizedBox(height: MindCareTheme.spacingMd),
@@ -520,10 +523,10 @@ class _ReasoningTraceCard extends StatelessWidget {
                 size: 22,
               ),
               const SizedBox(width: MindCareTheme.spacingSm),
-              Text(
+              Expanded(child: Text(
                 'Question-by-Question Trace',
                 style: Theme.of(context).textTheme.headlineSmall,
-              ),
+              )),
             ],
           ),
           const SizedBox(height: MindCareTheme.spacingSm),
@@ -715,10 +718,10 @@ class _RiskAndEmotionCard extends StatelessWidget {
                 size: 22,
               ),
               const SizedBox(width: MindCareTheme.spacingSm),
-              Text(
+              Expanded(child: Text(
                 'Risk & Emotion Signals',
                 style: Theme.of(context).textTheme.headlineSmall,
-              ),
+              )),
             ],
           ),
           const SizedBox(height: MindCareTheme.spacingMd),

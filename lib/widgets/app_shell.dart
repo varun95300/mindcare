@@ -172,12 +172,12 @@ class _Logo extends StatelessWidget {
       children: [
         BrandMark(size: compact ? 32 : 38),
         const SizedBox(width: 10),
-        Text(
+        Flexible(child: Text(
           'MindCare',
           style: Theme.of(
             context,
           ).textTheme.titleLarge?.copyWith(fontSize: compact ? 18 : 20),
-        ),
+        )),
       ],
     );
   }

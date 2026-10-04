@@ -365,8 +365,10 @@ class _ProfileHeader extends StatelessWidget {
           Text(psychologist.title,
               textAlign: TextAlign.center, style: text.bodyMedium),
           const SizedBox(height: MindCareTheme.spacingMd),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Wrap(
+            alignment: WrapAlignment.spaceEvenly,
+            spacing: 24,
+            runSpacing: 12,
             children: [
               _QuickStat(
                   value: '${psychologist.rating}',
@@ -477,7 +479,7 @@ class _SectionCard extends StatelessWidget {
           Row(children: [
             Icon(icon, color: MindCareTheme.primary, size: 22),
             const SizedBox(width: MindCareTheme.spacingSm),
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
+            Expanded(child: Text(title, style: Theme.of(context).textTheme.headlineSmall)),
           ]),
           const SizedBox(height: MindCareTheme.spacingMd),
           child,

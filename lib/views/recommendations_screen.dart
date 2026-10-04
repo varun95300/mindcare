@@ -142,20 +142,20 @@ class _PsychologistCard extends StatelessWidget {
             const SizedBox(height: MindCareTheme.spacingMd),
 
             // Stats row
-            Row(
+            Wrap(
+              spacing: MindCareTheme.spacingSm,
+              runSpacing: MindCareTheme.spacingSm,
               children: [
                 _StatChip(
                   icon: Icons.star,
                   label: '${psy.rating}',
                   color: MindCareTheme.stressColor,
                 ),
-                const SizedBox(width: MindCareTheme.spacingSm),
                 _StatChip(
                   icon: Icons.work_outline,
                   label: '${psy.yearsExperience}y exp',
                   color: MindCareTheme.secondary,
                 ),
-                const SizedBox(width: MindCareTheme.spacingSm),
                 _StatChip(
                   icon: Icons.currency_rupee,
                   label: '${psy.consultationFee.toInt()}',

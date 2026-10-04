@@ -145,11 +145,67 @@ class MindCareTheme {
         ),
       ];
 
+  /// Tests run offline and cannot download fonts; they set this so no
+  /// Google Fonts lookup happens. Always false in the real app.
+  static bool offlineFonts = false;
+
+  static TextStyle dmSans({
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    double? height,
+    FontStyle? fontStyle,
+    double? letterSpacing,
+  }) =>
+      offlineFonts
+          ? TextStyle(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: color,
+              height: height,
+              fontStyle: fontStyle,
+              letterSpacing: letterSpacing,
+            )
+          : GoogleFonts.dmSans(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: color,
+              height: height,
+              fontStyle: fontStyle,
+              letterSpacing: letterSpacing,
+            );
+
+  static TextStyle inter({
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    double? height,
+    FontStyle? fontStyle,
+    double? letterSpacing,
+  }) =>
+      offlineFonts
+          ? TextStyle(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: color,
+              height: height,
+              fontStyle: fontStyle,
+              letterSpacing: letterSpacing,
+            )
+          : GoogleFonts.inter(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: color,
+              height: height,
+              fontStyle: fontStyle,
+              letterSpacing: letterSpacing,
+            );
+
   // ===== TYPE =====
   // Headings: DM Sans. Body: Inter. Generous line height.
   static TextStyle _heading(double size, FontWeight weight,
           {Color color = textPrimary, double? height}) =>
-      GoogleFonts.dmSans(
+      MindCareTheme.dmSans(
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -158,7 +214,7 @@ class MindCareTheme {
 
   static TextStyle _body(double size, FontWeight weight,
           {Color color = textPrimary, double height = 1.55}) =>
-      GoogleFonts.inter(
+      MindCareTheme.inter(
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -188,7 +244,7 @@ class MindCareTheme {
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(radiusMd),
     );
-    final buttonText = GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600);
+    final buttonText = MindCareTheme.inter(fontSize: 15, fontWeight: FontWeight.w600);
     const buttonPadding = EdgeInsets.symmetric(horizontal: 24, vertical: 15);
 
     OutlineInputBorder inputBorder(Color color, [double width = 1]) =>
@@ -283,7 +339,7 @@ class MindCareTheme {
         filled: true,
         fillColor: surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: GoogleFonts.inter(fontSize: 14, color: textLight),
+        hintStyle: MindCareTheme.inter(fontSize: 14, color: textLight),
         border: inputBorder(border),
         enabledBorder: inputBorder(border),
         focusedBorder: inputBorder(primary, 2),
@@ -301,7 +357,7 @@ class MindCareTheme {
         backgroundColor: surface,
         selectedColor: primaryLight,
         side: const BorderSide(color: border),
-        labelStyle: GoogleFonts.inter(
+        labelStyle: MindCareTheme.inter(
             fontSize: 13, fontWeight: FontWeight.w500, color: textPrimary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusFull),
@@ -321,7 +377,7 @@ class MindCareTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: textPrimary,
-        contentTextStyle: GoogleFonts.inter(fontSize: 14, color: surface),
+        contentTextStyle: MindCareTheme.inter(fontSize: 14, color: surface),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
         ),
@@ -343,7 +399,7 @@ class MindCareTheme {
         height: 68,
         indicatorColor: primary.withValues(alpha: 0.35),
         labelTextStyle: WidgetStateProperty.resolveWith((states) =>
-            GoogleFonts.inter(
+            MindCareTheme.inter(
               fontSize: 11.5,
               fontWeight: states.contains(WidgetState.selected)
                   ? FontWeight.w600

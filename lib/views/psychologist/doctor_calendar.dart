@@ -92,9 +92,10 @@ class _DoctorCalendarState extends State<DoctorCalendar> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
+          scrollable: true,
           title: const Text('Block time'),
-          content: SizedBox(
-            width: 400,
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,8 +390,8 @@ class _Legend extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12)),
+          Flexible(child: Text(label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12))),
         ],
       );
 }

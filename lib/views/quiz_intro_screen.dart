@@ -128,9 +128,10 @@ class _QuizIntroScreenState extends State<QuizIntroScreen> {
           (ctx) => StatefulBuilder(
             builder:
                 (ctx, setLocal) => AlertDialog(
+          scrollable: true,
                   title: const Text('I\'m not available at this time'),
-                  content: SizedBox(
-                    width: 440,
+                  content: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,

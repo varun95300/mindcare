@@ -162,7 +162,7 @@ class Panel extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (trailing != null) trailing!,
+                if (trailing != null) Flexible(child: trailing!),
               ],
             ),
             const SizedBox(height: 16),
