@@ -19,6 +19,19 @@ void main() {
       expect(TextUtils.normalize('hmmmmm'), 'hmm');
     });
 
+    test('real words with double letters are never changed', () {
+      for (final w in ['off', 'stuff', 'will', 'all', 'too', 'see', 'pass', 'cross']) {
+        expect(TextUtils.normalize(w), w);
+      }
+      expect(TextUtils.normalize('better off without me'), 'better off without me');
+    });
+
+    test('short stretched words are repaired', () {
+      expect(TextUtils.normalize('yess'), 'yes');
+      expect(TextUtils.normalize('noo'), 'no');
+      expect(TextUtils.normalize('hii'), 'hi');
+    });
+
     test('real double letters are left alone', () {
       expect(TextUtils.normalize('I feel good, need sleep'), 'i feel good, need sleep');
     });

@@ -25,11 +25,24 @@ class TextUtils {
   static String _fixWord(String word) {
     if (word.contains("'")) return word;
     var w = word;
-    if (!Vocabulary.isKnown(w) && RegExp(r'(.)\1').hasMatch(w)) {
-      w = _repairStretched(w);
+    if (!Vocabulary.isKnown(w)) {
+      if (RegExp(r'(.)\1\1').hasMatch(w)) {
+        // Three or more of a letter is clearly stretched on purpose.
+        w = _repairStretched(w);
+      } else if (RegExp(r'(.)\1').hasMatch(w)) {
+        // A plain double letter may be a real word ("off", "stuff"), so only
+        // repair it into a few short words people commonly stretch.
+        final fixed = _repairStretched(w);
+        if (_stretchSafe.contains(fixed)) w = fixed;
+      }
     }
     return SlangLexicon.map[w] ?? w;
   }
+
+  static const Set<String> _stretchSafe = {
+    'yes', 'no', 'so', 'hi', 'hey', 'ok', 'okay', 'yeah', 'yea', 'yep',
+    'nah', 'ya', 'plz', 'pls', 'please', 'sorry', 'thanks',
+  };
 
   /// "yesssss" -> "yes", "goood" -> "good", "hellooo" -> "hello". Tries
   /// every way of shortening repeated letters, keeping the longest result
