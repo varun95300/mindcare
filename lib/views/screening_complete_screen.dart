@@ -20,7 +20,7 @@ class ScreeningCompleteScreen extends StatelessWidget {
 
     if (result == null) {
       return const Scaffold(
-        body: Center(child: Text('No screening result available')),
+        body: Center(child: Text('Nothing to show here yet.')),
       );
     }
 
@@ -38,14 +38,13 @@ class ScreeningCompleteScreen extends StatelessWidget {
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      gradient: MindCareTheme.heroGradient,
+                      color: MindCareTheme.accent.withValues(alpha: 0.45),
                       shape: BoxShape.circle,
-                      boxShadow: MindCareTheme.cardShadow,
                     ),
                     child: const Icon(
                       Icons.favorite_outline,
-                      size: 44,
-                      color: Colors.white,
+                      size: 42,
+                      color: MindCareTheme.terracotta,
                     ),
                   ),
                   const SizedBox(height: MindCareTheme.spacingXl),

@@ -6,6 +6,9 @@ class ChatMessage {
   final String? questionId; // non-null when bot asks a screening question
   final int? sentimentScore; // 0-3 severity, only for user messages
   final String? sentimentLabel; // e.g. 'negative', 'very_negative'
+  final String? emotionLabel; // e.g. 'fear', 'sadness' (primary emotion)
+  final String? riskLevel; // RiskLevel.name, only for user messages
+  final String? dominantConcern; // ScreeningDomain.name the message points to
   final DateTime createdAt;
 
   ChatMessage({
@@ -15,6 +18,9 @@ class ChatMessage {
     this.questionId,
     this.sentimentScore,
     this.sentimentLabel,
+    this.emotionLabel,
+    this.riskLevel,
+    this.dominantConcern,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -30,6 +36,9 @@ class ChatMessage {
       'questionId': questionId,
       'sentimentScore': sentimentScore,
       'sentimentLabel': sentimentLabel,
+      'emotionLabel': emotionLabel,
+      'riskLevel': riskLevel,
+      'dominantConcern': dominantConcern,
       'createdAt': createdAt.millisecondsSinceEpoch,
     };
   }
@@ -42,6 +51,9 @@ class ChatMessage {
       questionId: map['questionId'] as String?,
       sentimentScore: map['sentimentScore'] as int?,
       sentimentLabel: map['sentimentLabel'] as String?,
+      emotionLabel: map['emotionLabel'] as String?,
+      riskLevel: map['riskLevel'] as String?,
+      dominantConcern: map['dominantConcern'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int),
     );
   }

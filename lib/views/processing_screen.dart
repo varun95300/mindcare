@@ -91,21 +91,21 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                       width: 100,
                       height: 100,
                       decoration: BoxDecoration(
-                        gradient: MindCareTheme.heroGradient,
+                        color: MindCareTheme.primary.withValues(alpha: 0.55),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
                             color: MindCareTheme.primary
-                                .withOpacity(0.3 * _pulseController.value),
+                                .withValues(alpha: 0.3 * _pulseController.value),
                             blurRadius: 30,
                             spreadRadius: 10 * _pulseController.value,
                           ),
                         ],
                       ),
                       child: const Icon(
-                        Icons.psychology,
-                        size: 48,
-                        color: Colors.white,
+                        Icons.spa_outlined,
+                        size: 44,
+                        color: MindCareTheme.primaryDark,
                       ),
                     ),
                   );

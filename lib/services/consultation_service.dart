@@ -1,16 +1,257 @@
 import 'package:flutter/material.dart';
 import '../models/consultation.dart';
+import '../models/time_block.dart';
+import 'report_generator.dart';
 import '../models/screening_result.dart';
 import '../models/quiz_question.dart';
 import '../models/domain_evidence.dart';
+import '../models/text_analysis.dart';
+import 'local_store.dart';
 
-/// In-memory consultation service shared between user and psychologist views.
+/// Consultation service shared between user and psychologist views.
 /// Stores consultation requests so the psychologist can see user reports.
+///
+/// Requests are saved to the on-device [LocalStore] after every change, so
+/// they survive switching roles and restarting the app.
 class ConsultationService extends ChangeNotifier {
+  static const _collection = 'consultations';
+  static const _blocksCollection = 'time_blocks';
   final List<ConsultationRequest> _requests = [];
+  final List<TimeBlock> _blocks = [];
+  bool _loaded = false;
+
+  /// False until saved requests have been read (drives skeleton loaders).
+  bool get loaded => _loaded;
 
   ConsultationService() {
+    _load();
+  }
+
+  /// A service with no loading or seeding (used to build seed data).
+  ConsultationService.empty();
+
+  /// Load saved requests; on the very first run, seed the demo ones.
+  Future<void> _load() async {
+    final store = LocalStore.instance;
+    for (final doc in await store.readAll(_blocksCollection)) {
+      try {
+        _blocks.add(TimeBlock.fromJson(doc));
+      } catch (e) {
+        debugPrint('Skipping unreadable time block: $e');
+      }
+    }
+    if (await store.exists(_collection)) {
+      for (final doc in await store.readAll(_collection)) {
+        try {
+          _requests.add(ConsultationRequest.fromJson(doc));
+        } catch (e) {
+          debugPrint('Skipping unreadable saved request: $e');
+        }
+      }
+      // Reports saved earlier were worded for the patient ("you"). The
+      // psychologist reads them, so rewrite those in the third person.
+      var rewrote = false;
+      for (final r in _requests) {
+        if (!r.id.startsWith('req_seed_') &&
+            ReportGenerator.narrativeNeedsRewrite(r.screeningResult)) {
+          _requests[_requests.indexOf(r)] = ConsultationRequest(
+            id: r.id,
+            patientName: r.patientName,
+            patientEmail: r.patientEmail,
+            psychologistId: r.psychologistId,
+            screeningResult: ReportGenerator.rewriteNarrative(r.screeningResult),
+            status: r.status,
+            message: r.message,
+            requestedAt: r.requestedAt,
+            scheduledAt: r.scheduledAt,
+            psychologistNote: r.psychologistNote,
+            rescheduleReason: r.rescheduleReason,
+            rescheduleRequestedAt: r.rescheduleRequestedAt,
+            messages: r.messages,
+            patientReadAt: r.patientReadAt,
+            doctorReadAt: r.doctorReadAt,
+          );
+          rewrote = true;
+        }
+      }
+      if (rewrote) _persist();
+
+      // New demo requests shipped in a later version are merged in once.
+      final meta = await store.readAll('meta');
+      final savedVersion =
+          meta.isEmpty ? 0 : (meta.first['seedVersion'] as int? ?? 0);
+      if (savedVersion < _seedVersion) {
+        _mergeSeeds();
+        _persist();
+      }
+      notifyListeners();
+    } else {
+      addSeedRequests();
+      _persist();
+    }
+    await store.upsert('meta', {'id': 'meta', 'seedVersion': _seedVersion});
+    _loaded = true;
+    notifyListeners();
+  }
+
+  /// Bump when [addSeedRequests] gains new demo requests.
+  static const _seedVersion = 3;
+
+  /// Adds seed requests that are missing and refreshes the report of ones
+  /// already saved, keeping any status the psychologist already set.
+  void _mergeSeeds() {
+    final fresh = ConsultationService.empty().._buildSeeds();
+    for (final seed in fresh._requests) {
+      final i = _requests.indexWhere((r) => r.id == seed.id);
+      if (i < 0) {
+        _requests.add(seed);
+      } else if (seed.id.startsWith('req_seed_')) {
+        final old = _requests[i];
+        _requests[i] = ConsultationRequest(
+          id: old.id,
+          patientName: old.patientName,
+          patientEmail: old.patientEmail,
+          psychologistId: old.psychologistId,
+          screeningResult: seed.screeningResult
+            ..patientNote = old.screeningResult.patientNote,
+          status: old.status,
+          message: old.message,
+          requestedAt: old.requestedAt,
+          scheduledAt: old.scheduledAt,
+          psychologistNote: old.psychologistNote,
+          rescheduleReason: old.rescheduleReason,
+          rescheduleRequestedAt: old.rescheduleRequestedAt,
+          messages: old.messages,
+          patientReadAt: old.patientReadAt,
+          doctorReadAt: old.doctorReadAt,
+        );
+      }
+    }
+  }
+
+  void _persist() {
+    LocalStore.instance
+        .writeAll(_collection, _requests.map((r) => r.toJson()).toList());
+  }
+
+  /// Wipe saved data and go back to the seeded demo requests.
+  Future<void> resetDemoData() async {
+    _requests.clear();
+    _blocks.clear();
     addSeedRequests();
+    _persist();
+    _persistBlocks();
+  }
+
+  // ─── Chat between patient and psychologist ───────────────────────
+
+  /// Add a message to the chat on a request.
+  void sendDirectMessage(
+    String requestId, {
+    required bool fromDoctor,
+    required String text,
+  }) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    request.messages.add(DirectMessage(
+      id: 'dm_${DateTime.now().microsecondsSinceEpoch}',
+      fromDoctor: fromDoctor,
+      text: trimmed,
+    ));
+    // Writing a message means the writer has seen everything so far.
+    markRead(requestId, asDoctor: fromDoctor, notify: false);
+    _persist();
+    notifyListeners();
+  }
+
+  /// Mark the chat on a request as read by one side.
+  void markRead(String requestId, {required bool asDoctor, bool notify = true}) {
+    final i = _requests.indexWhere((r) => r.id == requestId);
+    if (i < 0) return;
+    final now = DateTime.now();
+    if (asDoctor) {
+      _requests[i].doctorReadAt = now;
+    } else {
+      _requests[i].patientReadAt = now;
+    }
+    if (notify) {
+      _persist();
+      notifyListeners();
+    }
+  }
+
+  /// A request by id (null if it has been removed).
+  ConsultationRequest? byId(String id) {
+    for (final r in _requests) {
+      if (r.id == id) return r;
+    }
+    return null;
+  }
+
+  // ─── Calendar: blocked time and clashes ──────────────────────────
+
+  List<TimeBlock> blocksFor(String psychologistId) => _blocks
+      .where((b) => b.psychologistId == psychologistId)
+      .toList()
+    ..sort((a, b) => a.start.compareTo(b.start));
+
+  void addBlock(TimeBlock block) {
+    _blocks.add(block);
+    _persistBlocks();
+    notifyListeners();
+  }
+
+  void removeBlock(String id) {
+    _blocks.removeWhere((b) => b.id == id);
+    _persistBlocks();
+    notifyListeners();
+  }
+
+  void _persistBlocks() {
+    LocalStore.instance
+        .writeAll(_blocksCollection, _blocks.map((b) => b.toJson()).toList());
+  }
+
+  /// Everything that overlaps a [kAppointmentMinutes] slot starting at
+  /// [start]: other confirmed appointments and blocked-off time. Pass
+  /// [excludeRequestId] to ignore the request being (re)scheduled.
+  List<ScheduleConflict> findConflicts(
+    String psychologistId,
+    DateTime start, {
+    String? excludeRequestId,
+  }) {
+    final end = start.add(const Duration(minutes: kAppointmentMinutes));
+    final conflicts = <ScheduleConflict>[];
+    for (final r in _requests) {
+      if (r.psychologistId != psychologistId ||
+          r.id == excludeRequestId ||
+          r.status != ConsultationStatus.accepted ||
+          r.scheduledAt == null) {
+        continue;
+      }
+      final rEnd = r.scheduledAt!.add(const Duration(minutes: kAppointmentMinutes));
+      if (timesOverlap(start, end, r.scheduledAt!, rEnd)) {
+        conflicts.add(ScheduleConflict(
+          title: 'Appointment with ${r.patientName}',
+          start: r.scheduledAt!,
+          end: rEnd,
+          isBlock: false,
+        ));
+      }
+    }
+    for (final b in blocksFor(psychologistId)) {
+      if (timesOverlap(start, end, b.start, b.end)) {
+        conflicts.add(ScheduleConflict(
+          title: b.reason.isEmpty ? 'Blocked time' : 'Blocked: ${b.reason}',
+          start: b.start,
+          end: b.end,
+          isBlock: true,
+        ));
+      }
+    }
+    conflicts.sort((a, b) => a.start.compareTo(b.start));
+    return conflicts;
   }
 
   /// All consultation requests.
@@ -22,6 +263,21 @@ class ConsultationService extends ChangeNotifier {
         .where((r) => r.psychologistId == psychologistId)
         .toList()
       ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+  }
+
+  /// All requests a patient has sent (any psychologist), newest first.
+  List<ConsultationRequest> requestsForPatient(String patientEmail) {
+    return _requests
+        .where((r) => r.patientEmail == patientEmail)
+        .toList()
+      ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+  }
+
+  /// Delete every request a patient sent (used by "start a new session").
+  void removeForPatient(String patientEmail) {
+    _requests.removeWhere((r) => r.patientEmail == patientEmail);
+    _persist();
+    notifyListeners();
   }
 
   /// Check if a request already exists for this psychologist from this session.
@@ -45,7 +301,10 @@ class ConsultationService extends ChangeNotifier {
   /// shown to them while picking a new time so they can avoid clashes.
   List<ConsultationRequest> scheduledAppointments(String psychologistId) {
     return _requests
-        .where((r) => r.psychologistId == psychologistId && r.scheduledAt != null)
+        .where((r) =>
+            r.psychologistId == psychologistId &&
+            r.scheduledAt != null &&
+            r.status == ConsultationStatus.accepted)
         .toList()
       ..sort((a, b) => a.scheduledAt!.compareTo(b.scheduledAt!));
   }
@@ -68,6 +327,7 @@ class ConsultationService extends ChangeNotifier {
       message: message,
     );
     _requests.add(request);
+    _persist();
     notifyListeners();
     return request;
   }
@@ -76,6 +336,7 @@ class ConsultationService extends ChangeNotifier {
   void acceptRequest(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
     request.status = ConsultationStatus.accepted;
+    _persist();
     notifyListeners();
   }
 
@@ -90,6 +351,27 @@ class ConsultationService extends ChangeNotifier {
     request.status = ConsultationStatus.accepted;
     request.scheduledAt = scheduledAt;
     request.psychologistNote = note?.trim().isEmpty ?? true ? null : note!.trim();
+    request.rescheduleReason = null;
+    request.rescheduleRequestedAt = null;
+    _persist();
+    notifyListeners();
+  }
+
+  /// The patient can't make the booked time and asks for another one.
+  void requestReschedule(String requestId, {String? reason}) {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    request.status = ConsultationStatus.rescheduleRequested;
+    request.rescheduleReason =
+        reason?.trim().isEmpty ?? true ? null : reason!.trim();
+    request.rescheduleRequestedAt = DateTime.now();
+    _persist();
+    notifyListeners();
+  }
+
+  /// Delete a single request (patient cancels, or psychologist clears it).
+  void removeRequest(String requestId) {
+    _requests.removeWhere((r) => r.id == requestId);
+    _persist();
     notifyListeners();
   }
 
@@ -97,6 +379,7 @@ class ConsultationService extends ChangeNotifier {
   void declineRequest(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
     request.status = ConsultationStatus.declined;
+    _persist();
     notifyListeners();
   }
 
@@ -105,6 +388,11 @@ class ConsultationService extends ChangeNotifier {
   /// are appended on top of these, not replaced by them.
   void addSeedRequests() {
     if (_requests.isNotEmpty) return;
+    _buildSeeds();
+    notifyListeners();
+  }
+
+  void _buildSeeds() {
 
     ScreeningResult buildResult({
       required ScreeningDomain primary,
@@ -113,6 +401,9 @@ class ConsultationService extends ChangeNotifier {
       required double secondaryScore,
       required List<String> observations,
       required String recommendation,
+      RiskLevel risk = RiskLevel.none,
+      List<String> riskFlags = const [],
+      Map<String, double> emotions = const {},
     }) {
       final scores = {for (final d in ScreeningDomain.values) d: 0.05};
       scores[primary] = primaryScore;
@@ -128,13 +419,16 @@ class ConsultationService extends ChangeNotifier {
         answers: const [],
         keyObservations: observations,
         methodologyExplanation:
-            'This screening asked adaptive questions selected based on '
-            'previous responses, contributing evidence toward four screening '
-            'areas: Anxiety, Depression, Stress, and Interpersonal/Trauma.',
+            'The patient was asked adaptive questions selected from earlier '
+            'answers, contributing evidence toward four screening areas: '
+            'Anxiety, Depression, Stress, and Interpersonal/Trauma.',
         disclaimer:
-            'This is a screening result, not a clinical diagnosis. Only a '
-            'qualified mental-health professional can provide a diagnosis.',
+            'This is an automated screening result, not a clinical diagnosis. '
+            'It is meant to support, not replace, your own clinical assessment.',
         recommendation: recommendation,
+        peakRiskLevel: risk,
+        riskFlags: riskFlags,
+        emotionSummary: emotions,
       );
     }
 
@@ -150,11 +444,14 @@ class ConsultationService extends ChangeNotifier {
           primaryScore: 0.78,
           secondaryScore: 0.52,
           observations: const [
-            'Frequently selected higher responses for questions related to anxiety.',
+            'The patient frequently gave higher-intensity answers to questions about anxiety.',
             'Several responses showed moderate indicators across stress.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in anxiety and stress.',
+              'The patient may benefit from support focused on anxiety and stress.',
+          risk: RiskLevel.moderate,
+          riskFlags: const ['panic attacks'],
+          emotions: const {'fear': 7.5, 'overwhelm': 3.0},
         )..patientNote =
             "I've been having panic attacks before exams and I don't know how to stop them.",
         status: ConsultationStatus.pending,
@@ -171,11 +468,13 @@ class ConsultationService extends ChangeNotifier {
           primaryScore: 0.71,
           secondaryScore: 0.28,
           observations: const [
-            'Frequently selected higher responses for questions related to stress.',
+            'The patient frequently gave higher-intensity answers to questions about stress.',
             'Responses related to depression were comparatively less prominent.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in stress management.',
+              'The patient may benefit from support focused on stress management.',
+          risk: RiskLevel.low,
+          emotions: const {'overwhelm': 6.0, 'exhaustion': 3.5},
         )..patientNote =
             "Work has been overwhelming lately and I can't switch off, even at night.",
         status: ConsultationStatus.accepted,
@@ -195,11 +494,99 @@ class ConsultationService extends ChangeNotifier {
             'Several responses showed moderate indicators across anxiety.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in anxiety.',
+              'The patient may benefit from support focused on anxiety.',
         ),
         status: ConsultationStatus.pending,
         message: 'Hoping to find a time to talk sometime this week, thank you.',
         requestedAt: DateTime.now().subtract(const Duration(minutes: 40)),
+      ),
+      ConsultationRequest(
+        id: 'req_seed_4',
+        patientName: 'Kabir Singh',
+        patientEmail: 'kabir.demo@mindcare.app',
+        psychologistId: 'psy_002',
+        screeningResult: buildResult(
+          primary: ScreeningDomain.depression,
+          secondary: ScreeningDomain.anxiety,
+          primaryScore: 0.82,
+          secondaryScore: 0.46,
+          observations: const [
+            'The patient frequently gave higher-intensity answers to questions about depression.',
+            'Several responses showed moderate indicators across anxiety.',
+          ],
+          recommendation:
+              'The patient may benefit from support focused on depression.',
+          risk: RiskLevel.high,
+          riskFlags: const ['no reason to live', 'hopeless'],
+          emotions: const {'hopelessness': 8.0, 'sadness': 5.5, 'loneliness': 2.5},
+        )..patientNote =
+            "I've stopped going to classes and honestly there's no reason to live like this.",
+        status: ConsultationStatus.pending,
+        requestedAt: DateTime.now().subtract(const Duration(minutes: 15)),
+      ),
+      ConsultationRequest(
+        id: 'req_seed_5',
+        patientName: 'Neha Gupta',
+        patientEmail: 'neha.demo@mindcare.app',
+        psychologistId: 'psy_003',
+        screeningResult: buildResult(
+          primary: ScreeningDomain.interpersonal,
+          secondary: ScreeningDomain.stress,
+          primaryScore: 0.69,
+          secondaryScore: 0.41,
+          observations: const [
+            'The patient responses showed a notably stronger pattern in Interpersonal / Trauma than in other areas.',
+          ],
+          recommendation:
+              'The patient may benefit from support focused on interpersonal difficulties.',
+          emotions: const {'anger': 5.0, 'loneliness': 4.0},
+        )..patientNote =
+            'Things at home have been tense for months and I feel like nobody listens.',
+        status: ConsultationStatus.pending,
+        requestedAt: DateTime.now().subtract(const Duration(hours: 3)),
+      ),
+      ConsultationRequest(
+        id: 'req_seed_6',
+        patientName: 'Aditya Rao',
+        patientEmail: 'aditya.demo@mindcare.app',
+        psychologistId: 'psy_004',
+        screeningResult: buildResult(
+          primary: ScreeningDomain.interpersonal,
+          secondary: ScreeningDomain.depression,
+          primaryScore: 0.74,
+          secondaryScore: 0.33,
+          observations: const [
+            'The patient frequently gave higher-intensity answers to questions about interpersonal / trauma.',
+          ],
+          recommendation:
+              'The patient may benefit from trauma-informed support.',
+          risk: RiskLevel.low,
+          emotions: const {'loneliness': 5.5, 'shame': 3.0},
+        ),
+        status: ConsultationStatus.pending,
+        requestedAt: DateTime.now().subtract(const Duration(hours: 20)),
+      ),
+      ConsultationRequest(
+        id: 'req_seed_7',
+        patientName: 'Zoya Ali',
+        patientEmail: 'zoya.demo@mindcare.app',
+        psychologistId: 'psy_008',
+        screeningResult: buildResult(
+          primary: ScreeningDomain.anxiety,
+          secondary: ScreeningDomain.stress,
+          primaryScore: 0.66,
+          secondaryScore: 0.5,
+          observations: const [
+            'Several responses showed moderate indicators across anxiety and stress.',
+          ],
+          recommendation:
+              'The patient may benefit from support focused on exam-related anxiety.',
+          emotions: const {'fear': 6.0, 'overwhelm': 4.5},
+        )..patientNote = 'My final exams start next week and I keep freezing up.',
+        status: ConsultationStatus.accepted,
+        requestedAt: DateTime.now().subtract(const Duration(days: 1)),
+        scheduledAt: DateTime.now().add(const Duration(days: 1, hours: 2)),
+        psychologistNote: 'Happy to help you prepare. See you then.',
       ),
     ]);
     notifyListeners();

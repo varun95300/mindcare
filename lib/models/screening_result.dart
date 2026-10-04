@@ -1,5 +1,6 @@
 import 'quiz_question.dart';
 import 'quiz_answer.dart';
+import 'text_analysis.dart';
 
 /// The final screening result with full explanation data.
 class ScreeningResult {
@@ -13,6 +14,17 @@ class ScreeningResult {
   final String disclaimer;
   final String recommendation;
   final DateTime completedAt;
+
+  /// Highest risk reading seen in the user's free-text replies, and the
+  /// phrases that triggered it. Shown to the clinician only.
+  final RiskLevel peakRiskLevel;
+  final List<String> riskFlags;
+
+  /// Total strength of each emotion expressed across the conversation.
+  final Map<String, double> emotionSummary;
+
+  /// Why each question was selected (hybrid selector trace).
+  final List<String> selectionReasons;
 
   /// An optional free-text note the patient wrote in their own words,
   /// captured right after the quiz. Only ever shown to the psychologist
@@ -31,7 +43,89 @@ class ScreeningResult {
     required this.recommendation,
     DateTime? completedAt,
     this.patientNote,
+    this.peakRiskLevel = RiskLevel.none,
+    this.riskFlags = const [],
+    this.emotionSummary = const {},
+    this.selectionReasons = const [],
   }) : completedAt = completedAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'primaryDomain': primaryDomain.name,
+        'secondaryDomain': secondaryDomain?.name,
+        'normalizedScores':
+            normalizedScores.map((k, v) => MapEntry(k.name, v)),
+        'severityLabels': severityLabels.map((k, v) => MapEntry(k.name, v)),
+        'answers': answers.map((a) => a.toJson()).toList(),
+        'keyObservations': keyObservations,
+        'methodologyExplanation': methodologyExplanation,
+        'disclaimer': disclaimer,
+        'recommendation': recommendation,
+        'completedAt': completedAt.millisecondsSinceEpoch,
+        'patientNote': patientNote,
+        'peakRiskLevel': peakRiskLevel.name,
+        'riskFlags': riskFlags,
+        'emotionSummary': emotionSummary,
+        'selectionReasons': selectionReasons,
+      };
+
+  factory ScreeningResult.fromJson(Map<String, dynamic> json) {
+    ScreeningDomain domain(String name) => ScreeningDomain.values.byName(name);
+    return ScreeningResult(
+      primaryDomain: domain(json['primaryDomain'] as String),
+      secondaryDomain: json['secondaryDomain'] == null
+          ? null
+          : domain(json['secondaryDomain'] as String),
+      normalizedScores:
+          (json['normalizedScores'] as Map<String, dynamic>).map(
+        (k, v) => MapEntry(domain(k), (v as num).toDouble()),
+      ),
+      severityLabels: (json['severityLabels'] as Map<String, dynamic>)
+          .map((k, v) => MapEntry(domain(k), v as String)),
+      answers: (json['answers'] as List)
+          .map((a) => QuizAnswer.fromJson(a as Map<String, dynamic>))
+          .whereType<QuizAnswer>()
+          .toList(),
+      keyObservations: List<String>.from(json['keyObservations'] as List),
+      methodologyExplanation: json['methodologyExplanation'] as String,
+      disclaimer: json['disclaimer'] as String,
+      recommendation: json['recommendation'] as String,
+      completedAt:
+          DateTime.fromMillisecondsSinceEpoch(json['completedAt'] as int),
+      patientNote: json['patientNote'] as String?,
+      peakRiskLevel: RiskLevel.fromName(json['peakRiskLevel'] as String?),
+      riskFlags: List<String>.from(json['riskFlags'] as List? ?? const []),
+      emotionSummary:
+          (json['emotionSummary'] as Map<String, dynamic>? ?? const {})
+              .map((k, v) => MapEntry(k, (v as num).toDouble())),
+      selectionReasons:
+          List<String>.from(json['selectionReasons'] as List? ?? const []),
+    );
+  }
+
+  /// A copy with the human-readable narrative replaced (data is unchanged).
+  ScreeningResult withNarrative({
+    required List<String> keyObservations,
+    required String methodologyExplanation,
+    required String recommendation,
+    required String disclaimer,
+  }) =>
+      ScreeningResult(
+        primaryDomain: primaryDomain,
+        secondaryDomain: secondaryDomain,
+        normalizedScores: normalizedScores,
+        severityLabels: severityLabels,
+        answers: answers,
+        keyObservations: keyObservations,
+        methodologyExplanation: methodologyExplanation,
+        disclaimer: disclaimer,
+        recommendation: recommendation,
+        completedAt: completedAt,
+        patientNote: patientNote,
+        peakRiskLevel: peakRiskLevel,
+        riskFlags: riskFlags,
+        emotionSummary: emotionSummary,
+        selectionReasons: selectionReasons,
+      );
 
   /// Number of questions answered.
   int get totalQuestions => answers.length;

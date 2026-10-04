@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../viewmodels/chat_viewmodel.dart';
 import '../services/auth_service.dart';
+import '../services/voice_input_service.dart';
 import '../models/chat_message.dart';
+import '../models/quiz_question.dart';
 import '../config/theme.dart';
+import '../widgets/motion.dart';
+import '../widgets/ui.dart';
 
 /// Chatbot-style screening screen.
 ///
@@ -24,12 +27,15 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   late ChatViewModel _viewModel;
+  final VoiceInputService _voice = VoiceInputService();
   bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
     _viewModel = ChatViewModel();
+    _voice.addListener(_onViewModelChanged);
+    _voice.init();
   }
 
   @override
@@ -67,13 +73,30 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
   void dispose() {
     _viewModel.removeListener(_onViewModelChanged);
     _viewModel.dispose();
+    _voice.removeListener(_onViewModelChanged);
+    _voice.dispose();
     _textController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
+  /// Toggle voice dictation. The transcript fills the text box so the user
+  /// can review or edit it, then send as usual.
+  void _toggleVoice() {
+    if (_voice.isListening) {
+      _voice.stop();
+      return;
+    }
+    _voice.start((text, isFinal) {
+      _textController.text = text;
+      _textController.selection = TextSelection.collapsed(offset: text.length);
+    });
+  }
+
   void _handleSend() {
+    if (_voice.isListening) _voice.stop();
+    if (_viewModel.isBusy) return; // one reply at a time
     final text = _textController.text.trim();
     if (text.isEmpty) return;
     _textController.clear();
@@ -86,20 +109,35 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
     return Scaffold(
       backgroundColor: MindCareTheme.background,
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          // Progress indicator
-          _buildProgressBar(),
-          // Chat messages
-          Expanded(child: _buildMessageList()),
-          // Typing indicator
-          if (_viewModel.isTyping) _buildTypingIndicator(),
-          // Input bar or completion prompt
-          if (_viewModel.isComplete)
-            _buildCompletionBar()
-          else
-            _buildInputBar(),
-        ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: Container(
+            decoration: BoxDecoration(
+              color: MindCareTheme.background,
+              border: Border.symmetric(
+                vertical: BorderSide(color: MindCareTheme.border),
+              ),
+            ),
+            child: Column(
+              children: [
+                // Progress indicator
+                _buildProgressBar(),
+                // Chat messages
+                Expanded(child: _buildMessageList()),
+                // Typing indicator
+                if (_viewModel.isTyping) _buildTypingIndicator(),
+                // One-tap answers
+                if (_viewModel.canQuickReply) _buildQuickReplies(),
+                // Input bar or completion prompt
+                if (_viewModel.isComplete)
+                  _buildCompletionBar()
+                else
+                  _buildInputBar(),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -114,24 +152,14 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
       ),
       title: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [MindCareTheme.primary, MindCareTheme.secondary],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.psychology, color: Colors.white, size: 20),
-          ),
+          const BrandMark(size: 36),
           const SizedBox(width: 12),
-          Column(
+          Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'MindCare',
-                style: GoogleFonts.outfit(
+                style: MindCareTheme.dmSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: MindCareTheme.textPrimary,
@@ -139,15 +167,16 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
               ),
               Text(
                 _viewModel.isTyping ? 'typing...' : 'Wellness Check-in',
-                style: GoogleFonts.inter(
+                style: MindCareTheme.inter(
                   fontSize: 12,
-                  color: _viewModel.isTyping
-                      ? MindCareTheme.primary
-                      : MindCareTheme.textSecondary,
+                  color:
+                      _viewModel.isTyping
+                          ? MindCareTheme.primary
+                          : MindCareTheme.textSecondary,
                 ),
               ),
             ],
-          ),
+          )),
         ],
       ),
       bottom: PreferredSize(
@@ -161,11 +190,17 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
     return Container(
       height: 3,
       color: MindCareTheme.surface,
-      child: LinearProgressIndicator(
-        value: _viewModel.progress,
-        backgroundColor: MindCareTheme.border,
-        valueColor: AlwaysStoppedAnimation<Color>(MindCareTheme.primary),
-        minHeight: 3,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: _viewModel.progress),
+        duration: Motion.of(context, const Duration(milliseconds: 500)),
+        curve: Curves.easeOut,
+        builder:
+            (context, v, _) => LinearProgressIndicator(
+              value: v,
+              backgroundColor: MindCareTheme.border,
+              valueColor: AlwaysStoppedAnimation<Color>(MindCareTheme.primary),
+              minHeight: 3,
+            ),
       ),
     );
   }
@@ -184,9 +219,8 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
 
   Widget _buildMessageBubble(ChatMessage message, int index) {
     final isBot = message.isBot;
-    final showAvatar = isBot &&
-        (index == 0 ||
-            _viewModel.messages[index - 1].isUser);
+    final showAvatar =
+        isBot && (index == 0 || _viewModel.messages[index - 1].isUser);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -201,18 +235,9 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
         children: [
           if (isBot) ...[
             if (showAvatar)
-              Container(
-                width: 28,
-                height: 28,
-                margin: const EdgeInsets.only(right: 8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [MindCareTheme.primary, MindCareTheme.secondary],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.psychology,
-                    color: Colors.white, size: 16),
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: BrandMark(size: 28),
               )
             else
               const SizedBox(width: 36),
@@ -221,8 +246,10 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
             child: _AnimatedBubble(
               isBot: isBot,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: isBot ? MindCareTheme.surface : MindCareTheme.primary,
                   borderRadius: BorderRadius.only(
@@ -231,9 +258,10 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                     bottomLeft: Radius.circular(isBot ? 4 : 18),
                     bottomRight: Radius.circular(isBot ? 18 : 4),
                   ),
-                  border: isBot
-                      ? Border.all(color: MindCareTheme.border, width: 1)
-                      : null,
+                  border:
+                      isBot
+                          ? Border.all(color: MindCareTheme.border, width: 1)
+                          : null,
                   boxShadow: [
                     BoxShadow(
                       color: (isBot
@@ -247,10 +275,10 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                 ),
                 child: Text(
                   message.text,
-                  style: GoogleFonts.inter(
+                  style: MindCareTheme.inter(
                     fontSize: 14.5,
                     height: 1.45,
-                    color: isBot ? MindCareTheme.textPrimary : Colors.white,
+                    color: MindCareTheme.textPrimary,
                   ),
                 ),
               ),
@@ -288,8 +316,9 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                         height: 8,
                         margin: const EdgeInsets.symmetric(horizontal: 2),
                         decoration: BoxDecoration(
-                          color: MindCareTheme.primary
-                              .withValues(alpha: 0.4 + value * 0.4),
+                          color: MindCareTheme.primary.withValues(
+                            alpha: 0.4 + value * 0.4,
+                          ),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -304,14 +333,45 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
     );
   }
 
+  /// Never ... Almost always buttons: a quick way to answer the current
+  /// question without typing.
+  Widget _buildQuickReplies() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      color: MindCareTheme.surface,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: [
+          for (final r in LikertResponse.values)
+            ActionChip(
+              label: Text(r.label),
+              onPressed: () => _viewModel.sendQuickReply(r),
+              backgroundColor: MindCareTheme.primaryLight.withValues(
+                alpha: 0.5,
+              ),
+              side: BorderSide(
+                color: MindCareTheme.primary.withValues(alpha: 0.4),
+              ),
+              labelStyle: MindCareTheme.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: MindCareTheme.primaryDark,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: MindCareTheme.surface,
-        border: Border(
-          top: BorderSide(color: MindCareTheme.border, width: 1),
-        ),
+        border: Border(top: BorderSide(color: MindCareTheme.border, width: 1)),
       ),
       child: SafeArea(
         child: Row(
@@ -323,46 +383,62 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: MindCareTheme.border),
                 ),
-                child: TextField(
-                  controller: _textController,
-                  focusNode: _focusNode,
-                  maxLines: 3,
-                  minLines: 1,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _handleSend(),
-                  style: GoogleFonts.inter(
-                    fontSize: 14.5,
-                    color: MindCareTheme.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Share how you feel...',
-                    hintStyle: GoogleFonts.inter(
+                child: GlowOnFocus(
+                  radius: 24,
+                  child: TextField(
+                    controller: _textController,
+                    focusNode: _focusNode,
+                    maxLines: 3,
+                    minLines: 1,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _handleSend(),
+                    style: MindCareTheme.inter(
                       fontSize: 14.5,
-                      color: MindCareTheme.textSecondary
-                          .withValues(alpha: 0.6),
+                      color: MindCareTheme.textPrimary,
                     ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
+                    decoration: InputDecoration(
+                      hintText:
+                          _voice.isListening
+                              ? 'Listening...'
+                              : 'Or type your answer in your own words...',
+                      hintStyle: MindCareTheme.inter(
+                        fontSize: 14.5,
+                        color: MindCareTheme.textSecondary.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [MindCareTheme.primary, MindCareTheme.secondary],
+            if (_voice.isAvailable) ...[
+              IconButton(
+                tooltip: _voice.isListening ? 'Stop listening' : 'Speak',
+                icon: Icon(
+                  _voice.isListening ? Icons.stop_circle : Icons.mic_none,
+                  color:
+                      _voice.isListening
+                          ? MindCareTheme.error
+                          : MindCareTheme.primary,
                 ),
-                borderRadius: BorderRadius.circular(24),
+                onPressed: _toggleVoice,
               ),
-              child: IconButton(
-                icon: const Icon(Icons.send_rounded,
-                    color: Colors.white, size: 20),
-                onPressed: _handleSend,
+              const SizedBox(width: 4),
+            ],
+            IconButton.filled(
+              style: IconButton.styleFrom(
+                backgroundColor: MindCareTheme.primary,
+                foregroundColor: MindCareTheme.textPrimary,
               ),
+              icon: const Icon(Icons.send_rounded, size: 20),
+              onPressed: _viewModel.isBusy ? null : _handleSend,
             ),
           ],
         ),
@@ -375,9 +451,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: MindCareTheme.surface,
-        border: Border(
-          top: BorderSide(color: MindCareTheme.border, width: 1),
-        ),
+        border: Border(top: BorderSide(color: MindCareTheme.border, width: 1)),
       ),
       child: SafeArea(
         child: SizedBox(
@@ -395,7 +469,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: MindCareTheme.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: MindCareTheme.textPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -403,8 +477,8 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
               elevation: 0,
             ),
             child: Text(
-              'View My Summary',
-              style: GoogleFonts.outfit(
+              'Continue',
+              style: MindCareTheme.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -416,37 +490,45 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
   }
 
   void _showExitDialog() {
-    showDialog(
+    showSoftDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: MindCareTheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Leave Conversation?',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w600,
-            color: MindCareTheme.textPrimary,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: MindCareTheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'Leave for now?',
+              style: MindCareTheme.dmSans(
+                fontWeight: FontWeight.w600,
+                color: MindCareTheme.textPrimary,
+              ),
+            ),
+            content: Text(
+              'Your progress is saved. You can resume this conversation any time.',
+              style: MindCareTheme.inter(color: MindCareTheme.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Stay',
+                  style: TextStyle(color: MindCareTheme.primary),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.pop(context);
+                },
+                child: Text(
+                  'Leave',
+                  style: TextStyle(color: MindCareTheme.textSecondary),
+                ),
+              ),
+            ],
           ),
-        ),
-        content: Text(
-          'Your progress will be lost if you leave now.',
-          style: GoogleFonts.inter(color: MindCareTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Stay', style: TextStyle(color: MindCareTheme.primary)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            child: Text('Leave',
-                style: TextStyle(color: MindCareTheme.textSecondary)),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -482,10 +564,7 @@ class _AnimatedBubbleState extends State<_AnimatedBubble>
     _slideAnimation = Tween<Offset>(
       begin: Offset(widget.isBot ? -0.3 : 0.3, 0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
     _controller.forward();
   }
 
@@ -499,10 +578,7 @@ class _AnimatedBubbleState extends State<_AnimatedBubble>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: widget.child,
-      ),
+      child: SlideTransition(position: _slideAnimation, child: widget.child),
     );
   }
 }

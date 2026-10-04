@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../widgets/motion.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
+import '../widgets/feedback.dart';
+import '../widgets/ui.dart';
 import '../models/psychologist.dart';
 import '../models/screening_result.dart';
 import '../models/consultation.dart';
@@ -105,10 +108,10 @@ class PsychologistProfileScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         borderRadius:
                             BorderRadius.circular(MindCareTheme.radiusFull),
-                        border: Border.all(color: color.withOpacity(0.4)),
+                        border: Border.all(color: color.withValues(alpha: 0.4)),
                       ),
                       child: Text(
                         spec.label,
@@ -137,22 +140,12 @@ class PsychologistProfileScreen extends StatelessWidget {
                   ),
                 )
               else if (alreadySent)
-                _AlreadySentCard(request: existingRequest!)
+                _AlreadySentCard(request: existingRequest)
               else
                 ElevatedButton.icon(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                            'Please check in first so we can connect you properly.'),
-                        backgroundColor: MindCareTheme.primary,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(MindCareTheme.radiusMd),
-                        ),
-                      ),
-                    );
+                    Toasts.show('Please check in first so we can connect you properly.',
+                        icon: Icons.info_outline);
                   },
                   icon: const Icon(Icons.calendar_today_outlined),
                   label: const Text('Connect'),
@@ -178,7 +171,7 @@ class PsychologistProfileScreen extends StatelessWidget {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'What you shared goes directly to this psychologist so they\'re prepared for you — you won\'t see it yourself, it\'s just for them.',
+                          'What you shared goes directly to this psychologist so they\'re prepared to meet you.',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     fontSize: 12,
@@ -201,7 +194,7 @@ class PsychologistProfileScreen extends StatelessWidget {
       ConsultationService service, String userName, String userEmail) {
     final messageController = TextEditingController();
 
-    showDialog(
+    showSoftDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
@@ -250,18 +243,7 @@ class PsychologistProfileScreen extends StatelessWidget {
                     : null,
               );
               Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      '${psychologist.name} will be in touch soon. You\'ve taken a great step.'),
-                  backgroundColor: MindCareTheme.success,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(MindCareTheme.radiusMd),
-                  ),
-                ),
-              );
+              Toasts.show('${psychologist.name} will be in touch soon. You have taken a great step.');
             },
             child: const Text('Reach Out'),
           ),
@@ -281,15 +263,19 @@ class _AlreadySentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheduledLabel = request.scheduledAtLabel;
+    final scheduledLabel = request.status == ConsultationStatus.accepted
+        ? request.scheduledAtLabel
+        : null;
+    final rescheduling =
+        request.status == ConsultationStatus.rescheduleRequested;
 
     if (scheduledLabel == null) {
       return Container(
         padding: const EdgeInsets.all(MindCareTheme.spacingMd),
         decoration: BoxDecoration(
-          color: MindCareTheme.success.withOpacity(0.1),
+          color: MindCareTheme.success.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
-          border: Border.all(color: MindCareTheme.success.withOpacity(0.3)),
+          border: Border.all(color: MindCareTheme.success.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -298,7 +284,9 @@ class _AlreadySentCard extends StatelessWidget {
                 color: MindCareTheme.success, size: 22),
             const SizedBox(width: MindCareTheme.spacingSm),
             Text(
-              'You\'ve reached out — they\'ll respond soon.',
+              rescheduling
+                  ? 'You asked for a new time. They will get back to you.'
+                  : 'You\'ve reached out — they\'ll respond soon.',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: MindCareTheme.success,
                   ),
@@ -311,9 +299,9 @@ class _AlreadySentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(MindCareTheme.spacingLg),
       decoration: BoxDecoration(
-        color: MindCareTheme.success.withOpacity(0.08),
+        color: MindCareTheme.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
-        border: Border.all(color: MindCareTheme.success.withOpacity(0.3)),
+        border: Border.all(color: MindCareTheme.success.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,67 +350,38 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final text = Theme.of(context).textTheme;
+    return Panel(
+      color: MindCareTheme.primaryLight,
+      borderColor: MindCareTheme.primary.withValues(alpha: 0.4),
       padding: const EdgeInsets.all(MindCareTheme.spacingLg),
-      decoration: BoxDecoration(
-        gradient: MindCareTheme.heroGradient,
-        borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
-      ),
       child: Column(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
-              border:
-                  Border.all(color: Colors.white.withOpacity(0.5), width: 3),
-            ),
-            child: Center(
-              child: Text(
-                psychologist.name
-                    .split(' ')
-                    .map((w) => w[0])
-                    .take(2)
-                    .join(),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ),
-          ),
+          Avatar(psychologist.name.replaceFirst('Dr. ', ''), size: 80),
           const SizedBox(height: MindCareTheme.spacingMd),
-          Text(
-            psychologist.name,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                ),
-          ),
+          Text(psychologist.name,
+              textAlign: TextAlign.center, style: text.headlineMedium),
           const SizedBox(height: 4),
-          Text(
-            psychologist.title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.85),
-                ),
-          ),
+          Text(psychologist.title,
+              textAlign: TextAlign.center, style: text.bodyMedium),
           const SizedBox(height: MindCareTheme.spacingMd),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Wrap(
+            alignment: WrapAlignment.spaceEvenly,
+            spacing: 24,
+            runSpacing: 12,
             children: [
               _QuickStat(
                   value: '${psychologist.rating}',
                   label: 'Rating',
-                  icon: Icons.star),
+                  icon: Icons.star_outline_rounded),
               _QuickStat(
                   value: '${psychologist.yearsExperience}y',
                   label: 'Experience',
-                  icon: Icons.work),
+                  icon: Icons.work_outline),
               _QuickStat(
                   value: '${psychologist.reviewCount}',
                   label: 'Reviews',
-                  icon: Icons.rate_review),
+                  icon: Icons.rate_review_outlined),
             ],
           ),
         ],
@@ -440,18 +399,13 @@ class _QuickStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
     return Column(
       children: [
-        Icon(icon, color: Colors.white.withOpacity(0.7), size: 18),
+        Icon(icon, color: MindCareTheme.primaryDark, size: 20),
         const SizedBox(height: 4),
-        Text(value,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-        Text(label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withOpacity(0.7), fontSize: 12)),
+        Text(value, style: text.titleLarge),
+        Text(label, style: text.bodyMedium?.copyWith(fontSize: 12)),
       ],
     );
   }
@@ -466,9 +420,9 @@ class _MatchCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(MindCareTheme.spacingMd),
       decoration: BoxDecoration(
-        color: MindCareTheme.success.withOpacity(0.08),
+        color: MindCareTheme.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
-        border: Border.all(color: MindCareTheme.success.withOpacity(0.3)),
+        border: Border.all(color: MindCareTheme.success.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -476,7 +430,7 @@ class _MatchCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: MindCareTheme.success.withOpacity(0.15),
+              color: MindCareTheme.success.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -525,7 +479,7 @@ class _SectionCard extends StatelessWidget {
           Row(children: [
             Icon(icon, color: MindCareTheme.primary, size: 22),
             const SizedBox(width: MindCareTheme.spacingSm),
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
+            Expanded(child: Text(title, style: Theme.of(context).textTheme.headlineSmall)),
           ]),
           const SizedBox(height: MindCareTheme.spacingMd),
           child,

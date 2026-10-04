@@ -5,7 +5,10 @@ enum ConsultationStatus {
   pending,
   accepted,
   declined,
-  completed;
+  completed,
+
+  /// The patient said the booked time doesn't work and asked for another.
+  rescheduleRequested;
 
   String get label {
     switch (this) {
@@ -17,8 +20,41 @@ enum ConsultationStatus {
         return 'Declined';
       case ConsultationStatus.completed:
         return 'Completed';
+      case ConsultationStatus.rescheduleRequested:
+        return 'Reschedule requested';
     }
   }
+}
+
+/// One message in the chat between a patient and their psychologist.
+class DirectMessage {
+  final String id;
+
+  /// True if the psychologist wrote it, false if the patient did.
+  final bool fromDoctor;
+  final String text;
+  final DateTime sentAt;
+
+  DirectMessage({
+    required this.id,
+    required this.fromDoctor,
+    required this.text,
+    DateTime? sentAt,
+  }) : sentAt = sentAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'fromDoctor': fromDoctor,
+        'text': text,
+        'sentAt': sentAt.millisecondsSinceEpoch,
+      };
+
+  factory DirectMessage.fromJson(Map<String, dynamic> json) => DirectMessage(
+        id: json['id'] as String,
+        fromDoctor: json['fromDoctor'] as bool,
+        text: json['text'] as String,
+        sentAt: DateTime.fromMillisecondsSinceEpoch(json['sentAt'] as int),
+      );
 }
 
 /// A consultation request from a user to a psychologist.
@@ -40,6 +76,26 @@ class ConsultationRequest {
   /// the patient sees this (unlike the screening result itself).
   String? psychologistNote;
 
+  /// Why the patient can't make the booked time (set with
+  /// [ConsultationStatus.rescheduleRequested]).
+  String? rescheduleReason;
+  DateTime? rescheduleRequestedAt;
+
+  /// Chat between the patient and the psychologist about this request.
+  final List<DirectMessage> messages;
+  DateTime? patientReadAt;
+  DateTime? doctorReadAt;
+
+  /// Messages the other side wrote that [asDoctor]'s side has not opened yet.
+  int unreadFor({required bool asDoctor}) {
+    final readAt = asDoctor ? doctorReadAt : patientReadAt;
+    return messages
+        .where((m) =>
+            m.fromDoctor != asDoctor &&
+            (readAt == null || m.sentAt.isAfter(readAt)))
+        .length;
+  }
+
   ConsultationRequest({
     required this.id,
     required this.patientName,
@@ -51,7 +107,65 @@ class ConsultationRequest {
     DateTime? requestedAt,
     this.scheduledAt,
     this.psychologistNote,
-  }) : requestedAt = requestedAt ?? DateTime.now();
+    this.rescheduleReason,
+    this.rescheduleRequestedAt,
+    List<DirectMessage>? messages,
+    this.patientReadAt,
+    this.doctorReadAt,
+  })  : messages = messages ?? [],
+        requestedAt = requestedAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'patientName': patientName,
+        'patientEmail': patientEmail,
+        'psychologistId': psychologistId,
+        'screeningResult': screeningResult.toJson(),
+        'requestedAt': requestedAt.millisecondsSinceEpoch,
+        'status': status.name,
+        'message': message,
+        'scheduledAt': scheduledAt?.millisecondsSinceEpoch,
+        'psychologistNote': psychologistNote,
+        'rescheduleReason': rescheduleReason,
+        'rescheduleRequestedAt': rescheduleRequestedAt?.millisecondsSinceEpoch,
+        'messages': messages.map((m) => m.toJson()).toList(),
+        'patientReadAt': patientReadAt?.millisecondsSinceEpoch,
+        'doctorReadAt': doctorReadAt?.millisecondsSinceEpoch,
+      };
+
+  factory ConsultationRequest.fromJson(Map<String, dynamic> json) {
+    return ConsultationRequest(
+      id: json['id'] as String,
+      patientName: json['patientName'] as String,
+      patientEmail: json['patientEmail'] as String,
+      psychologistId: json['psychologistId'] as String,
+      screeningResult: ScreeningResult.fromJson(
+          json['screeningResult'] as Map<String, dynamic>),
+      requestedAt:
+          DateTime.fromMillisecondsSinceEpoch(json['requestedAt'] as int),
+      status: ConsultationStatus.values.byName(json['status'] as String),
+      message: json['message'] as String?,
+      scheduledAt: json['scheduledAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(json['scheduledAt'] as int),
+      psychologistNote: json['psychologistNote'] as String?,
+      rescheduleReason: json['rescheduleReason'] as String?,
+      rescheduleRequestedAt: json['rescheduleRequestedAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              json['rescheduleRequestedAt'] as int),
+      messages: [
+        for (final m in (json['messages'] as List? ?? const []))
+          DirectMessage.fromJson(m as Map<String, dynamic>),
+      ],
+      patientReadAt: json['patientReadAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(json['patientReadAt'] as int),
+      doctorReadAt: json['doctorReadAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(json['doctorReadAt'] as int),
+    );
+  }
 
   /// Time ago string for display.
   String get timeAgoLabel {
