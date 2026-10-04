@@ -26,6 +26,37 @@ enum ConsultationStatus {
   }
 }
 
+/// One message in the chat between a patient and their psychologist.
+class DirectMessage {
+  final String id;
+
+  /// True if the psychologist wrote it, false if the patient did.
+  final bool fromDoctor;
+  final String text;
+  final DateTime sentAt;
+
+  DirectMessage({
+    required this.id,
+    required this.fromDoctor,
+    required this.text,
+    DateTime? sentAt,
+  }) : sentAt = sentAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'fromDoctor': fromDoctor,
+        'text': text,
+        'sentAt': sentAt.millisecondsSinceEpoch,
+      };
+
+  factory DirectMessage.fromJson(Map<String, dynamic> json) => DirectMessage(
+        id: json['id'] as String,
+        fromDoctor: json['fromDoctor'] as bool,
+        text: json['text'] as String,
+        sentAt: DateTime.fromMillisecondsSinceEpoch(json['sentAt'] as int),
+      );
+}
+
 /// A consultation request from a user to a psychologist.
 /// Contains the user's screening report so the psychologist can review it.
 class ConsultationRequest {
@@ -50,6 +81,21 @@ class ConsultationRequest {
   String? rescheduleReason;
   DateTime? rescheduleRequestedAt;
 
+  /// Chat between the patient and the psychologist about this request.
+  final List<DirectMessage> messages;
+  DateTime? patientReadAt;
+  DateTime? doctorReadAt;
+
+  /// Messages the other side wrote that [asDoctor]'s side has not opened yet.
+  int unreadFor({required bool asDoctor}) {
+    final readAt = asDoctor ? doctorReadAt : patientReadAt;
+    return messages
+        .where((m) =>
+            m.fromDoctor != asDoctor &&
+            (readAt == null || m.sentAt.isAfter(readAt)))
+        .length;
+  }
+
   ConsultationRequest({
     required this.id,
     required this.patientName,
@@ -63,7 +109,11 @@ class ConsultationRequest {
     this.psychologistNote,
     this.rescheduleReason,
     this.rescheduleRequestedAt,
-  }) : requestedAt = requestedAt ?? DateTime.now();
+    List<DirectMessage>? messages,
+    this.patientReadAt,
+    this.doctorReadAt,
+  })  : messages = messages ?? [],
+        requestedAt = requestedAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -78,6 +128,9 @@ class ConsultationRequest {
         'psychologistNote': psychologistNote,
         'rescheduleReason': rescheduleReason,
         'rescheduleRequestedAt': rescheduleRequestedAt?.millisecondsSinceEpoch,
+        'messages': messages.map((m) => m.toJson()).toList(),
+        'patientReadAt': patientReadAt?.millisecondsSinceEpoch,
+        'doctorReadAt': doctorReadAt?.millisecondsSinceEpoch,
       };
 
   factory ConsultationRequest.fromJson(Map<String, dynamic> json) {
@@ -101,6 +154,16 @@ class ConsultationRequest {
           ? null
           : DateTime.fromMillisecondsSinceEpoch(
               json['rescheduleRequestedAt'] as int),
+      messages: [
+        for (final m in (json['messages'] as List? ?? const []))
+          DirectMessage.fromJson(m as Map<String, dynamic>),
+      ],
+      patientReadAt: json['patientReadAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(json['patientReadAt'] as int),
+      doctorReadAt: json['doctorReadAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(json['doctorReadAt'] as int),
     );
   }
 

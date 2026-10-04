@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/consultation.dart';
+import '../models/time_block.dart';
 import '../models/screening_result.dart';
 import '../models/quiz_question.dart';
 import '../models/domain_evidence.dart';
@@ -13,7 +14,9 @@ import 'local_store.dart';
 /// they survive switching roles and restarting the app.
 class ConsultationService extends ChangeNotifier {
   static const _collection = 'consultations';
+  static const _blocksCollection = 'time_blocks';
   final List<ConsultationRequest> _requests = [];
+  final List<TimeBlock> _blocks = [];
 
   ConsultationService() {
     _load();
@@ -25,6 +28,13 @@ class ConsultationService extends ChangeNotifier {
   /// Load saved requests; on the very first run, seed the demo ones.
   Future<void> _load() async {
     final store = LocalStore.instance;
+    for (final doc in await store.readAll(_blocksCollection)) {
+      try {
+        _blocks.add(TimeBlock.fromJson(doc));
+      } catch (e) {
+        debugPrint('Skipping unreadable time block: $e');
+      }
+    }
     if (await store.exists(_collection)) {
       for (final doc in await store.readAll(_collection)) {
         try {
@@ -76,6 +86,9 @@ class ConsultationService extends ChangeNotifier {
           psychologistNote: old.psychologistNote,
           rescheduleReason: old.rescheduleReason,
           rescheduleRequestedAt: old.rescheduleRequestedAt,
+          messages: old.messages,
+          patientReadAt: old.patientReadAt,
+          doctorReadAt: old.doctorReadAt,
         );
       }
     }
@@ -89,8 +102,121 @@ class ConsultationService extends ChangeNotifier {
   /// Wipe saved data and go back to the seeded demo requests.
   Future<void> resetDemoData() async {
     _requests.clear();
+    _blocks.clear();
     addSeedRequests();
     _persist();
+    _persistBlocks();
+  }
+
+  // ─── Chat between patient and psychologist ───────────────────────
+
+  /// Add a message to the chat on a request.
+  void sendDirectMessage(
+    String requestId, {
+    required bool fromDoctor,
+    required String text,
+  }) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    request.messages.add(DirectMessage(
+      id: 'dm_${DateTime.now().microsecondsSinceEpoch}',
+      fromDoctor: fromDoctor,
+      text: trimmed,
+    ));
+    // Writing a message means the writer has seen everything so far.
+    markRead(requestId, asDoctor: fromDoctor, notify: false);
+    _persist();
+    notifyListeners();
+  }
+
+  /// Mark the chat on a request as read by one side.
+  void markRead(String requestId, {required bool asDoctor, bool notify = true}) {
+    final i = _requests.indexWhere((r) => r.id == requestId);
+    if (i < 0) return;
+    final now = DateTime.now();
+    if (asDoctor) {
+      _requests[i].doctorReadAt = now;
+    } else {
+      _requests[i].patientReadAt = now;
+    }
+    if (notify) {
+      _persist();
+      notifyListeners();
+    }
+  }
+
+  /// A request by id (null if it has been removed).
+  ConsultationRequest? byId(String id) {
+    for (final r in _requests) {
+      if (r.id == id) return r;
+    }
+    return null;
+  }
+
+  // ─── Calendar: blocked time and clashes ──────────────────────────
+
+  List<TimeBlock> blocksFor(String psychologistId) => _blocks
+      .where((b) => b.psychologistId == psychologistId)
+      .toList()
+    ..sort((a, b) => a.start.compareTo(b.start));
+
+  void addBlock(TimeBlock block) {
+    _blocks.add(block);
+    _persistBlocks();
+    notifyListeners();
+  }
+
+  void removeBlock(String id) {
+    _blocks.removeWhere((b) => b.id == id);
+    _persistBlocks();
+    notifyListeners();
+  }
+
+  void _persistBlocks() {
+    LocalStore.instance
+        .writeAll(_blocksCollection, _blocks.map((b) => b.toJson()).toList());
+  }
+
+  /// Everything that overlaps a [kAppointmentMinutes] slot starting at
+  /// [start]: other confirmed appointments and blocked-off time. Pass
+  /// [excludeRequestId] to ignore the request being (re)scheduled.
+  List<ScheduleConflict> findConflicts(
+    String psychologistId,
+    DateTime start, {
+    String? excludeRequestId,
+  }) {
+    final end = start.add(const Duration(minutes: kAppointmentMinutes));
+    final conflicts = <ScheduleConflict>[];
+    for (final r in _requests) {
+      if (r.psychologistId != psychologistId ||
+          r.id == excludeRequestId ||
+          r.status != ConsultationStatus.accepted ||
+          r.scheduledAt == null) {
+        continue;
+      }
+      final rEnd = r.scheduledAt!.add(const Duration(minutes: kAppointmentMinutes));
+      if (timesOverlap(start, end, r.scheduledAt!, rEnd)) {
+        conflicts.add(ScheduleConflict(
+          title: 'Appointment with ${r.patientName}',
+          start: r.scheduledAt!,
+          end: rEnd,
+          isBlock: false,
+        ));
+      }
+    }
+    for (final b in blocksFor(psychologistId)) {
+      if (timesOverlap(start, end, b.start, b.end)) {
+        conflicts.add(ScheduleConflict(
+          title: b.reason.isEmpty ? 'Blocked time' : 'Blocked: ${b.reason}',
+          start: b.start,
+          end: b.end,
+          isBlock: true,
+        ));
+      }
+    }
+    conflicts.sort((a, b) => a.start.compareTo(b.start));
+    return conflicts;
   }
 
   /// All consultation requests.

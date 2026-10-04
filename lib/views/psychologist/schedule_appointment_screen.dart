@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/consultation.dart';
+import '../../models/time_block.dart';
 import '../../services/consultation_service.dart';
 
 /// Lets the psychologist accept a request by picking a date & time —
@@ -19,11 +20,17 @@ class ScheduleAppointmentScreen extends StatefulWidget {
 class _ScheduleAppointmentScreenState
     extends State<ScheduleAppointmentScreen> {
   DateTime? _selectedDateTime;
+
+  /// Clashes found when the psychologist pressed Confirm. Null until then:
+  /// nothing is flagged while they are still choosing a time.
+  List<ScheduleConflict>? _conflicts;
+  final ScrollController _scrollController = ScrollController();
   final _noteController =
       TextEditingController(text: 'Looking forward to speaking with you.');
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -47,10 +54,35 @@ class _ScheduleAppointmentScreenState
     setState(() {
       _selectedDateTime =
           DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _conflicts = null; // a new choice starts clean
     });
   }
 
+  /// Runs when Confirm is pressed: flags any clash straight away at the top
+  /// of the page and holds the booking until the psychologist decides.
   void _confirm() {
+    if (_selectedDateTime == null) return;
+    final service = context.read<ConsultationService>();
+    final clashes = service.findConflicts(
+      widget.request.psychologistId,
+      _selectedDateTime!,
+      excludeRequestId: widget.request.id,
+    );
+    if (clashes.isNotEmpty) {
+      setState(() => _conflicts = clashes);
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+      return;
+    }
+    _commit();
+  }
+
+  void _commit() {
     if (_selectedDateTime == null) return;
     context.read<ConsultationService>().acceptAndSchedule(
           widget.request.id,
@@ -74,10 +106,23 @@ class _ScheduleAppointmentScreenState
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          controller: _scrollController,
           padding: const EdgeInsets.all(MindCareTheme.spacingLg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_conflicts != null && _conflicts!.isNotEmpty) ...[
+                _ClashBanner(
+                  conflicts: _conflicts!,
+                  chosen: _selectedDateTime!,
+                  onPickAnother: () {
+                    setState(() => _conflicts = null);
+                    _pickDateTime();
+                  },
+                  onScheduleAnyway: _commit,
+                ),
+                const SizedBox(height: MindCareTheme.spacingLg),
+              ],
               if (widget.request.status ==
                   ConsultationStatus.rescheduleRequested) ...[
                 Container(
@@ -229,6 +274,107 @@ class _UpcomingAppointmentTile extends StatelessWidget {
                   color: MindCareTheme.textLight,
                   fontSize: 12,
                 ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown at the top of the page when the chosen time overlaps something.
+class _ClashBanner extends StatelessWidget {
+  final List<ScheduleConflict> conflicts;
+  final DateTime chosen;
+  final VoidCallback onPickAnother;
+  final VoidCallback onScheduleAnyway;
+
+  const _ClashBanner({
+    required this.conflicts,
+    required this.chosen,
+    required this.onPickAnother,
+    required this.onScheduleAnyway,
+  });
+
+  String _range(DateTime a, DateTime b) =>
+      '${ConsultationRequest.formatDateTime(a)} to ${_clock(b)}';
+
+  String _clock(DateTime d) {
+    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final m = d.minute.toString().padLeft(2, '0');
+    return '$h:$m ${d.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(MindCareTheme.spacingMd),
+      decoration: BoxDecoration(
+        color: MindCareTheme.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+        border: Border.all(color: MindCareTheme.error, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: MindCareTheme.error),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  conflicts.length == 1
+                      ? 'Scheduling clash'
+                      : '${conflicts.length} scheduling clashes',
+                  style: text.titleMedium?.copyWith(color: MindCareTheme.error),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'You picked ${ConsultationRequest.formatDateTime(chosen)} '
+            '(1 hour), which overlaps:',
+            style: text.bodyMedium,
+          ),
+          const SizedBox(height: 8),
+          for (final c in conflicts)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(c.isBlock ? Icons.lock_outline : Icons.event_busy,
+                      size: 16, color: MindCareTheme.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${c.title}\n${_range(c.start, c.end)}',
+                      style: text.bodyMedium
+                          ?.copyWith(color: MindCareTheme.textPrimary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              FilledButton(
+                onPressed: onPickAnother,
+                style: FilledButton.styleFrom(
+                    backgroundColor: MindCareTheme.primary),
+                child: const Text('Pick another time'),
+              ),
+              OutlinedButton(
+                onPressed: onScheduleAnyway,
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: MindCareTheme.error),
+                child: const Text('Schedule anyway'),
+              ),
+            ],
           ),
         ],
       ),

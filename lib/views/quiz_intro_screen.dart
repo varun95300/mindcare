@@ -10,6 +10,7 @@ import '../viewmodels/chat_viewmodel.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/ui.dart';
 import 'chat_screening_screen.dart';
+import 'consultation_chat_screen.dart';
 import 'recommendations_screen.dart';
 
 /// The patient's workspace: a home page with the check-in, and an
@@ -491,6 +492,12 @@ class _QuizIntroScreenState extends State<QuizIntroScreen> {
               request: r,
               onNotAvailable: () => _askReschedule(r),
               onRemove: () => _confirmRemove(r),
+              onMessage: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ConsultationChatScreen(
+                      requestId: r.id, asDoctor: false),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
           ],
@@ -592,11 +599,13 @@ class _AppointmentCard extends StatelessWidget {
   final ConsultationRequest request;
   final VoidCallback onNotAvailable;
   final VoidCallback onRemove;
+  final VoidCallback onMessage;
 
   const _AppointmentCard({
     required this.request,
     required this.onNotAvailable,
     required this.onRemove,
+    required this.onMessage,
   });
 
   @override
@@ -696,6 +705,16 @@ class _AppointmentCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 8,
             children: [
+              if (r.status != ConsultationStatus.declined)
+                OutlinedButton.icon(
+                  onPressed: onMessage,
+                  icon: Badge(
+                    isLabelVisible: r.unreadFor(asDoctor: false) > 0,
+                    label: Text('${r.unreadFor(asDoctor: false)}'),
+                    child: const Icon(Icons.chat_bubble_outline, size: 18),
+                  ),
+                  label: const Text('Message'),
+                ),
               if (canReschedule)
                 OutlinedButton.icon(
                   onPressed: onNotAvailable,

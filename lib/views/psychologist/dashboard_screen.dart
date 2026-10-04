@@ -9,7 +9,9 @@ import '../../services/auth_service.dart';
 import '../../services/consultation_service.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/ui.dart';
+import '../consultation_chat_screen.dart';
 import 'analytics_widgets.dart';
+import 'doctor_calendar.dart';
 import 'patient_report_screen.dart';
 import 'schedule_appointment_screen.dart';
 
@@ -46,6 +48,15 @@ class _PsychologistDashboardScreenState
   void _openReport(ConsultationRequest r) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PatientReportScreen(request: r)),
+    );
+  }
+
+  void _openChat(ConsultationRequest r) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ConsultationChatScreen(requestId: r.id, asDoctor: true),
+      ),
     );
   }
 
@@ -154,7 +165,7 @@ class _PsychologistDashboardScreenState
       child: switch (_tab) {
         0 => _overview(psychologist?.name, requests),
         1 => _requestsPage(requests),
-        _ => _schedulePage(requests),
+        _ => _schedulePage(requests, psychologist?.id),
       },
     );
   }
@@ -463,6 +474,7 @@ class _PsychologistDashboardScreenState
               onReport: () => _openReport(r),
               onSchedule: () => _openSchedule(r),
               onRemove: () => _confirmRemove(r),
+              onMessage: () => _openChat(r),
             ),
             const SizedBox(height: 12),
           ],
@@ -472,7 +484,7 @@ class _PsychologistDashboardScreenState
 
   // ─── Schedule ─────────────────────────────────────────────────────
 
-  Widget _schedulePage(List<ConsultationRequest> all) {
+  Widget _schedulePage(List<ConsultationRequest> all, String? psychologistId) {
     final booked = all
         .where((r) =>
             r.status == ConsultationStatus.accepted && r.scheduledAt != null)
@@ -493,8 +505,18 @@ class _PsychologistDashboardScreenState
       children: [
         const PageHeader(
           title: 'Schedule',
-          subtitle: 'Your confirmed appointments',
+          subtitle: 'Your calendar, appointments and blocked time',
         ),
+        if (psychologistId != null) ...[
+          DoctorCalendar(
+            psychologistId: psychologistId,
+            onOpenAppointment: _openReport,
+          ),
+          const SizedBox(height: 24),
+          Text('Upcoming list',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+        ],
         if (byDay.isEmpty)
           const Panel(
             child: EmptyState(
@@ -868,12 +890,14 @@ class _RequestCard extends StatelessWidget {
   final VoidCallback onReport;
   final VoidCallback onSchedule;
   final VoidCallback onRemove;
+  final VoidCallback onMessage;
 
   const _RequestCard({
     required this.request,
     required this.onReport,
     required this.onSchedule,
     required this.onRemove,
+    required this.onMessage,
   });
 
   @override
@@ -993,6 +1017,16 @@ class _RequestCard extends StatelessWidget {
                 icon: const Icon(Icons.description_outlined, size: 18),
                 label: const Text('View report'),
               ),
+              if (r.status != ConsultationStatus.declined)
+                OutlinedButton.icon(
+                  onPressed: onMessage,
+                  icon: Badge(
+                    isLabelVisible: r.unreadFor(asDoctor: true) > 0,
+                    label: Text('${r.unreadFor(asDoctor: true)}'),
+                    child: const Icon(Icons.chat_bubble_outline, size: 18),
+                  ),
+                  label: const Text('Message'),
+                ),
               if (primaryAction.$1 != null)
                 primaryAction.$2
                     ? FilledButton(
