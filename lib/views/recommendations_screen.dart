@@ -140,7 +140,7 @@ class _PsychologistCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: MindCareTheme.success.withOpacity(0.1),
+                    color: MindCareTheme.success.withValues(alpha: 0.1),
                     borderRadius:
                         BorderRadius.circular(MindCareTheme.radiusFull),
                   ),
@@ -193,11 +193,11 @@ class _PsychologistCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(isMatch ? 0.2 : 0.08),
+                    color: color.withValues(alpha: isMatch ? 0.2 : 0.08),
                     borderRadius:
                         BorderRadius.circular(MindCareTheme.radiusFull),
                     border: isMatch
-                        ? Border.all(color: color.withOpacity(0.5))
+                        ? Border.all(color: color.withValues(alpha: 0.5))
                         : null,
                   ),
                   child: Text(
@@ -218,7 +218,7 @@ class _PsychologistCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(MindCareTheme.spacingSm),
               decoration: BoxDecoration(
-                color: MindCareTheme.primaryLight.withOpacity(0.2),
+                color: MindCareTheme.primaryLight.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(MindCareTheme.radiusSm),
               ),
               child: Row(
@@ -261,7 +261,7 @@ class _StatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(MindCareTheme.radiusFull),
       ),
       child: Row(

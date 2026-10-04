@@ -193,7 +193,7 @@ class _ProgressSection extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 6,
-            backgroundColor: MindCareTheme.primaryLight.withOpacity(0.3),
+            backgroundColor: MindCareTheme.primaryLight.withValues(alpha: 0.3),
             valueColor:
                 const AlwaysStoppedAnimation<Color>(MindCareTheme.primary),
           ),
@@ -223,13 +223,13 @@ class _AnswerOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           color: isSelected
-              ? MindCareTheme.primary.withOpacity(0.1)
+              ? MindCareTheme.primary.withValues(alpha: 0.1)
               : MindCareTheme.surface,
           borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
           border: Border.all(
             color: isSelected
                 ? MindCareTheme.primary
-                : MindCareTheme.textLight.withOpacity(0.3),
+                : MindCareTheme.textLight.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
           ),
         ),

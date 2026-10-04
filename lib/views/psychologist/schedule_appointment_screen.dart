@@ -100,7 +100,7 @@ class _ScheduleAppointmentScreenState
                     border: Border.all(
                       color: _selectedDateTime != null
                           ? MindCareTheme.primary
-                          : MindCareTheme.textLight.withOpacity(0.3),
+                          : MindCareTheme.textLight.withValues(alpha: 0.3),
                       width: _selectedDateTime != null ? 2 : 1,
                     ),
                   ),

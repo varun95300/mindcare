@@ -105,10 +105,10 @@ class PsychologistProfileScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         borderRadius:
                             BorderRadius.circular(MindCareTheme.radiusFull),
-                        border: Border.all(color: color.withOpacity(0.4)),
+                        border: Border.all(color: color.withValues(alpha: 0.4)),
                       ),
                       child: Text(
                         spec.label,
@@ -137,7 +137,7 @@ class PsychologistProfileScreen extends StatelessWidget {
                   ),
                 )
               else if (alreadySent)
-                _AlreadySentCard(request: existingRequest!)
+                _AlreadySentCard(request: existingRequest)
               else
                 ElevatedButton.icon(
                   onPressed: () {
@@ -287,9 +287,9 @@ class _AlreadySentCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(MindCareTheme.spacingMd),
         decoration: BoxDecoration(
-          color: MindCareTheme.success.withOpacity(0.1),
+          color: MindCareTheme.success.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
-          border: Border.all(color: MindCareTheme.success.withOpacity(0.3)),
+          border: Border.all(color: MindCareTheme.success.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -311,9 +311,9 @@ class _AlreadySentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(MindCareTheme.spacingLg),
       decoration: BoxDecoration(
-        color: MindCareTheme.success.withOpacity(0.08),
+        color: MindCareTheme.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
-        border: Border.all(color: MindCareTheme.success.withOpacity(0.3)),
+        border: Border.all(color: MindCareTheme.success.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,10 +374,10 @@ class _ProfileHeader extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
               border:
-                  Border.all(color: Colors.white.withOpacity(0.5), width: 3),
+                  Border.all(color: Colors.white.withValues(alpha: 0.5), width: 3),
             ),
             child: Center(
               child: Text(
@@ -404,7 +404,7 @@ class _ProfileHeader extends StatelessWidget {
           Text(
             psychologist.title,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.85),
+                  color: Colors.white.withValues(alpha: 0.85),
                 ),
           ),
           const SizedBox(height: MindCareTheme.spacingMd),
@@ -442,7 +442,7 @@ class _QuickStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white.withOpacity(0.7), size: 18),
+        Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 18),
         const SizedBox(height: 4),
         Text(value,
             style: Theme.of(context)
@@ -451,7 +451,7 @@ class _QuickStat extends StatelessWidget {
                 ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
         Text(label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
       ],
     );
   }
@@ -466,9 +466,9 @@ class _MatchCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(MindCareTheme.spacingMd),
       decoration: BoxDecoration(
-        color: MindCareTheme.success.withOpacity(0.08),
+        color: MindCareTheme.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
-        border: Border.all(color: MindCareTheme.success.withOpacity(0.3)),
+        border: Border.all(color: MindCareTheme.success.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -476,7 +476,7 @@ class _MatchCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: MindCareTheme.success.withOpacity(0.15),
+              color: MindCareTheme.success.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Center(

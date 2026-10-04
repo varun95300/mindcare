@@ -129,17 +129,17 @@ class QuizIntroScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(MindCareTheme.spacingMd),
                 decoration: BoxDecoration(
-                  color: MindCareTheme.warning.withOpacity(0.1),
+                  color: MindCareTheme.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
                   border: Border.all(
-                    color: MindCareTheme.warning.withOpacity(0.3),
+                    color: MindCareTheme.warning.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.info_outline,
-                      color: MindCareTheme.warning.withOpacity(0.8),
+                      color: MindCareTheme.warning.withValues(alpha: 0.8),
                       size: 20,
                     ),
                     const SizedBox(width: MindCareTheme.spacingSm),
@@ -210,9 +210,9 @@ class _DomainChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(MindCareTheme.radiusFull),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(
         label,

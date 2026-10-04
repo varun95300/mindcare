@@ -97,11 +97,11 @@ class PatientReportScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(MindCareTheme.spacingMd),
                 decoration: BoxDecoration(
-                  color: MindCareTheme.warning.withOpacity(0.08),
+                  color: MindCareTheme.warning.withValues(alpha: 0.08),
                   borderRadius:
                       BorderRadius.circular(MindCareTheme.radiusMd),
                   border: Border.all(
-                      color: MindCareTheme.warning.withOpacity(0.3)),
+                      color: MindCareTheme.warning.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +149,7 @@ class _PatientInfoCard extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -176,7 +176,7 @@ class _PatientInfoCard extends StatelessWidget {
                 Text(
                   'Screening completed • ${request.screeningResult.totalQuestions} questions',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 13,
                       ),
                 ),
@@ -185,7 +185,7 @@ class _PatientInfoCard extends StatelessWidget {
                   Text(
                     'Message: "${request.message}"',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           fontStyle: FontStyle.italic,
                           fontSize: 12,
                         ),
@@ -212,9 +212,9 @@ class _PatientNoteCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(MindCareTheme.spacingLg),
       decoration: BoxDecoration(
-        color: MindCareTheme.accent.withOpacity(0.08),
+        color: MindCareTheme.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
-        border: Border.all(color: MindCareTheme.accent.withOpacity(0.3)),
+        border: Border.all(color: MindCareTheme.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +272,7 @@ class _ScreeningProfileCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.15),
+              color: primaryColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(MindCareTheme.radiusFull),
             ),
             child: Text(
@@ -288,7 +288,7 @@ class _ScreeningProfileCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: MindCareTheme.domainColor(result.secondaryDomain!.label)
-                    .withOpacity(0.1),
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(MindCareTheme.radiusFull),
               ),
               child: Text(
@@ -355,7 +355,7 @@ class _DomainScoresCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.15),
+                              color: color.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(
                                   MindCareTheme.radiusFull),
                             ),
@@ -381,7 +381,7 @@ class _DomainScoresCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: score,
                       minHeight: 8,
-                      backgroundColor: color.withOpacity(0.1),
+                      backgroundColor: color.withValues(alpha: 0.1),
                       valueColor: AlwaysStoppedAnimation<Color>(color),
                     ),
                   ),
@@ -501,7 +501,7 @@ class _ReasoningTraceCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: MindCareTheme.primary.withOpacity(0.15),
+                            color: MindCareTheme.primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(
                                 MindCareTheme.radiusFull),
                           ),
@@ -523,7 +523,7 @@ class _ReasoningTraceCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color:
                                 _responseColor(step.responseValue)
-                                    .withOpacity(0.1),
+                                    .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(
                                 MindCareTheme.radiusFull),
                           ),
@@ -562,7 +562,7 @@ class _ReasoningTraceCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
+                            color: color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(
                                 MindCareTheme.radiusFull),
                           ),
@@ -634,7 +634,7 @@ class _RiskAndEmotionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: MindCareTheme.surface,
         borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
-        border: Border.all(color: _riskColor.withOpacity(0.4)),
+        border: Border.all(color: _riskColor.withValues(alpha: 0.4)),
         boxShadow: MindCareTheme.softShadow,
       ),
       child: Column(

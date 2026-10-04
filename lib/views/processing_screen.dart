@@ -96,7 +96,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                         boxShadow: [
                           BoxShadow(
                             color: MindCareTheme.primary
-                                .withOpacity(0.3 * _pulseController.value),
+                                .withValues(alpha: 0.3 * _pulseController.value),
                             blurRadius: 30,
                             spreadRadius: 10 * _pulseController.value,
                           ),

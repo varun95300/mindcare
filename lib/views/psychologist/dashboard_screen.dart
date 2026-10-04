@@ -95,10 +95,10 @@ class PsychologistDashboardScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         borderRadius:
                             BorderRadius.circular(MindCareTheme.radiusFull),
-                        border: Border.all(color: color.withOpacity(0.4)),
+                        border: Border.all(color: color.withValues(alpha: 0.4)),
                       ),
                       child: Text(
                         spec.label,
@@ -129,7 +129,7 @@ class PsychologistDashboardScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.inbox_outlined,
                           size: 48,
-                          color: MindCareTheme.textLight.withOpacity(0.5)),
+                          color: MindCareTheme.textLight.withValues(alpha: 0.5)),
                       const SizedBox(height: MindCareTheme.spacingSm),
                       Text(
                         'No consultation requests yet',
@@ -211,7 +211,7 @@ class _DashboardHeader extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -232,7 +232,7 @@ class _DashboardHeader extends StatelessWidget {
                 Text(
                   'Welcome back,',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                 ),
                 Text(
@@ -244,7 +244,7 @@ class _DashboardHeader extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 13,
                       ),
                 ),
@@ -368,7 +368,7 @@ class _ConsultationRequestCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
+                            color: statusColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(
                                 MindCareTheme.radiusFull),
                           ),
@@ -449,7 +449,7 @@ class _ConsultationRequestCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(MindCareTheme.spacingSm),
               decoration: BoxDecoration(
-                color: MindCareTheme.success.withOpacity(0.1),
+                color: MindCareTheme.success.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(MindCareTheme.radiusSm),
               ),
               child: Row(
@@ -574,9 +574,9 @@ class _DomainTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(isPrimary ? 0.2 : 0.1),
+        color: color.withValues(alpha: isPrimary ? 0.2 : 0.1),
         borderRadius: BorderRadius.circular(MindCareTheme.radiusFull),
-        border: isPrimary ? Border.all(color: color.withOpacity(0.5)) : null,
+        border: isPrimary ? Border.all(color: color.withValues(alpha: 0.5)) : null,
       ),
       child: Text(
         label,
