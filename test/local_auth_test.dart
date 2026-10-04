@@ -1,12 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mindcare/services/local_store.dart';
 import 'package:mindcare/models/user_model.dart';
 import 'package:mindcare/services/auth_service.dart';
 
 Future<void> settle() => Future.delayed(const Duration(milliseconds: 50));
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    LocalStore.instance.resetCache();
+  });
 
   test('sign up, sign out, wrong password, sign in', () async {
     final auth = AuthService();

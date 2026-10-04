@@ -78,6 +78,35 @@ class _ScheduleAppointmentScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (widget.request.status ==
+                  ConsultationStatus.rescheduleRequested) ...[
+                Container(
+                  padding: const EdgeInsets.all(MindCareTheme.spacingMd),
+                  decoration: BoxDecoration(
+                    color: MindCareTheme.accent.withValues(alpha: 0.12),
+                    borderRadius:
+                        BorderRadius.circular(MindCareTheme.radiusMd),
+                    border: Border.all(
+                        color: MindCareTheme.accent.withValues(alpha: 0.4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.request.patientName} cannot make the booked time',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      if (widget.request.scheduledAtLabel != null)
+                        Text('Was: ${widget.request.scheduledAtLabel}'),
+                      Text(
+                          'Reason: ${widget.request.rescheduleReason ?? 'not given'}'),
+                      const SizedBox(height: 4),
+                      const Text('Pick a new time below to confirm it.'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: MindCareTheme.spacingLg),
+              ],
               if (upcoming.isNotEmpty) ...[
                 Text(
                   'Your Upcoming Appointments',

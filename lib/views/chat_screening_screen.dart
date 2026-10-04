@@ -5,6 +5,7 @@ import '../viewmodels/chat_viewmodel.dart';
 import '../services/auth_service.dart';
 import '../services/voice_input_service.dart';
 import '../models/chat_message.dart';
+import '../models/quiz_question.dart';
 import '../config/theme.dart';
 
 /// Chatbot-style screening screen.
@@ -107,20 +108,35 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
     return Scaffold(
       backgroundColor: MindCareTheme.background,
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          // Progress indicator
-          _buildProgressBar(),
-          // Chat messages
-          Expanded(child: _buildMessageList()),
-          // Typing indicator
-          if (_viewModel.isTyping) _buildTypingIndicator(),
-          // Input bar or completion prompt
-          if (_viewModel.isComplete)
-            _buildCompletionBar()
-          else
-            _buildInputBar(),
-        ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: Container(
+            decoration: BoxDecoration(
+              color: MindCareTheme.background,
+              border: Border.symmetric(
+                vertical: BorderSide(color: MindCareTheme.border),
+              ),
+            ),
+            child: Column(
+              children: [
+                // Progress indicator
+                _buildProgressBar(),
+                // Chat messages
+                Expanded(child: _buildMessageList()),
+                // Typing indicator
+                if (_viewModel.isTyping) _buildTypingIndicator(),
+                // One-tap answers
+                if (_viewModel.canQuickReply) _buildQuickReplies(),
+                // Input bar or completion prompt
+                if (_viewModel.isComplete)
+                  _buildCompletionBar()
+                else
+                  _buildInputBar(),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -325,6 +341,36 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
     );
   }
 
+  /// Never ... Almost always buttons: a quick way to answer the current
+  /// question without typing.
+  Widget _buildQuickReplies() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      color: MindCareTheme.surface,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: [
+          for (final r in LikertResponse.values)
+            ActionChip(
+              label: Text(r.label),
+              onPressed: () => _viewModel.sendQuickReply(r),
+              backgroundColor: MindCareTheme.primaryLight.withValues(alpha: 0.5),
+              side: BorderSide(
+                  color: MindCareTheme.primary.withValues(alpha: 0.4)),
+              labelStyle: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: MindCareTheme.primaryDark,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -358,7 +404,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
                   decoration: InputDecoration(
                     hintText: _voice.isListening
                         ? 'Listening...'
-                        : 'Share how you feel...',
+                        : 'Or type your answer in your own words...',
                     hintStyle: GoogleFonts.inter(
                       fontSize: 14.5,
                       color: MindCareTheme.textSecondary

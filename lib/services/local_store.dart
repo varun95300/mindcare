@@ -18,6 +18,10 @@ class LocalStore {
   Future<SharedPreferences> get _p async =>
       _prefs ??= await SharedPreferences.getInstance();
 
+  /// Drop the cached preferences handle (tests swap the backing store).
+  @visibleForTesting
+  void resetCache() => _prefs = null;
+
   static const _prefix = 'mindcare.';
 
   /// Read a whole collection (empty list if never written or unreadable).

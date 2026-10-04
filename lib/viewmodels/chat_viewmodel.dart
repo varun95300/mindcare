@@ -6,6 +6,7 @@ import '../models/quiz_question.dart';
 import '../models/screening_result.dart';
 import '../models/text_analysis.dart';
 import '../services/adaptive_engine.dart';
+import '../services/answer_validator.dart';
 import '../services/text_analysis_pipeline.dart';
 import '../services/report_generator.dart';
 import '../services/firestore_service.dart';
@@ -70,6 +71,21 @@ class ChatViewModel extends ChangeNotifier {
   static Future<bool> hasSavedSession(String patientId) async {
     final docs = await LocalStore.instance.readAll(_sessions);
     return docs.any((d) => d['id'] == patientId);
+  }
+
+  /// The finished screening report for [patientId], if the chat was completed.
+  static Future<ScreeningResult?> loadFinishedResult(String patientId) async {
+    try {
+      final docs = await LocalStore.instance.readAll(_sessions);
+      final saved = docs.where((d) => d['id'] == patientId);
+      if (saved.isEmpty) return null;
+      final doc = saved.first;
+      if (doc['isComplete'] != true || doc['result'] == null) return null;
+      return ScreeningResult.fromJson(doc['result'] as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('Could not load finished result: $e');
+      return null;
+    }
   }
 
   /// Delete the saved conversation and screening for [patientId].
@@ -161,25 +177,50 @@ class ChatViewModel extends ChangeNotifier {
     await _saveSession();
   }
 
-  /// Process a user's free-text reply.
-  Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty || _isComplete) return;
+  /// Whether the answer buttons should be shown right now.
+  bool get canQuickReply =>
+      !_isComplete && !_isTyping && _currentQuestion != null;
 
-    // 1. Add user message to chat
-    final userMsg = ChatMessage(
+  ChatMessage _addUserMessage(String text) {
+    final msg = ChatMessage(
       id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
       sender: 'user',
       text: text.trim(),
     );
-    _messages.add(userMsg);
+    _messages.add(msg);
     notifyListeners();
+    return msg;
+  }
+
+  /// Process a user's free-text reply.
+  ///
+  /// Replies that are not real answers (random keys, bare numbers) are not
+  /// scored: the bot explains and waits for a proper answer.
+  Future<void> sendMessage(String text) async {
+    if (text.trim().isEmpty || _isComplete || _isTyping) return;
+
+    // 1. Add user message to chat
+    final userMsg = _addUserMessage(text);
+
+    // 1b. Reject non-answers instead of scoring them
+    final problem = AnswerValidator.check(text);
+    if (problem != null) {
+      _isTyping = true;
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _addBotMessage(_pick(problem == AnswerProblem.noWords
+          ? _noWordsReplies
+          : _gibberishReplies));
+      await _saveSession();
+      return;
+    }
 
     // 2. Run the on-device pipeline: sentiment → emotion → keywords →
     //    risk → dominant concern
     final analysis = _pipeline.analyze(text, question: _currentQuestion);
 
     // Update user message with analysis data (for storage)
-    final enrichedUserMsg = ChatMessage(
+    _messages[_messages.length - 1] = ChatMessage(
       id: userMsg.id,
       sender: 'user',
       text: text.trim(),
@@ -191,53 +232,98 @@ class ChatViewModel extends ChangeNotifier {
       createdAt: userMsg.createdAt,
     );
 
-    // Replace the last message with enriched version
-    _messages[_messages.length - 1] = enrichedUserMsg;
-
     // 3. Feed the answer and the text signals to the adaptive engine
     if (_currentQuestion != null) {
-      // Map severity (0-3) to LikertResponse
-      final likertValue = _mapSeverityToLikert(analysis.severityScore);
-      _engine.recordAnswer(_currentQuestion!, likertValue);
+      _engine.recordAnswer(
+        _currentQuestion!,
+        _mapSeverityToLikert(analysis.severityScore),
+      );
     }
     _engine.recordSignals(analysis);
 
-    // 4. Show typing indicator
+    await _respondAndContinue(
+      reply: _generateEmpathyReply(analysis),
+      needsSafety: analysis.risk.level.needsSafetyResponse,
+    );
+  }
+
+  /// The user tapped one of the answer buttons (Never … Almost always).
+  Future<void> sendQuickReply(LikertResponse response) async {
+    if (!canQuickReply) return;
+    final question = _currentQuestion!;
+
+    final label = _labelFor(response);
+    final userMsg = _addUserMessage(response.label);
+    _messages[_messages.length - 1] = ChatMessage(
+      id: userMsg.id,
+      sender: 'user',
+      text: response.label,
+      sentimentScore: response.value.clamp(0, 3),
+      sentimentLabel: label,
+      createdAt: userMsg.createdAt,
+    );
+
+    _engine.recordAnswer(question, response);
+    await _respondAndContinue(
+      reply: _pick(_sentimentReplies[label]!),
+      needsSafety: false,
+    );
+  }
+
+  String _labelFor(LikertResponse r) {
+    switch (r) {
+      case LikertResponse.never:
+        return 'positive';
+      case LikertResponse.rarely:
+      case LikertResponse.sometimes:
+        return 'neutral';
+      case LikertResponse.often:
+        return 'negative';
+      case LikertResponse.almostAlways:
+        return 'very_negative';
+    }
+  }
+
+  /// Shared tail of every accepted answer: acknowledge, show safety info if
+  /// needed, then finish or ask the next question.
+  Future<void> _respondAndContinue({
+    required String? reply,
+    required bool needsSafety,
+  }) async {
+    // Typing indicator
     _isTyping = true;
     notifyListeners();
     await Future.delayed(const Duration(milliseconds: 600));
 
-    // 5. Send empathetic acknowledgment
-    final empathyReply = _generateEmpathyReply(analysis);
-    if (empathyReply != null) {
-      await _addBotMessage(empathyReply);
+    // Empathetic acknowledgment
+    if (reply != null) {
+      await _addBotMessage(reply);
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
-    // 5b. Safety response when the message indicates high risk
-    if (analysis.risk.level.needsSafetyResponse && !_safetyShown) {
+    // Safety response when the message indicates high risk
+    if (needsSafety && !_safetyShown) {
       _safetyShown = true;
       await _addBotMessage(_safetyMessage);
       await Future.delayed(const Duration(milliseconds: 700));
     }
 
-    // 6. Check if quiz is complete
+    // Finished?
     if (_engine.isComplete) {
       await _finishConversation();
       return;
     }
 
-    // 7. Ask the next question
+    // Ask the next question
     _currentQuestion = _engine.selectNextQuestion();
-    if (_currentQuestion != null) {
-      await _addBotMessage(
-        _currentQuestion!.text,
-        questionId: _currentQuestion!.id,
-      );
-    } else {
+    if (_currentQuestion == null) {
       await _finishConversation();
       return;
     }
+    await _addBotMessage(
+      _currentQuestion!.text,
+      questionId: _currentQuestion!.id,
+    );
 
     _isTyping = false;
     notifyListeners();
@@ -340,6 +426,17 @@ class ChatViewModel extends ChangeNotifier {
       "line straight away (for example Tele-MANAS 14416 in India, or 988 in "
       "the US), or reach out to someone you trust. You don't have to go "
       "through this alone. 💙";
+
+  static const List<String> _noWordsReplies = [
+    "I can only work with words, not numbers or symbols. Could you answer in a short sentence, or tap one of the options below?",
+    "I didn't catch an answer there. Try telling me in a few words, or pick one of the options below.",
+  ];
+
+  static const List<String> _gibberishReplies = [
+    "I didn't quite understand that. Could you say it in a few words, or tap one of the options below?",
+    "Sorry, I couldn't make that out. Please answer in your own words, or choose one of the options below.",
+    "That didn't read like an answer to me. A short sentence is perfect, or use the buttons below.",
+  ];
 
   static const Map<String, List<String>> _sentimentReplies = {
     'very_negative': [

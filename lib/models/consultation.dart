@@ -5,7 +5,10 @@ enum ConsultationStatus {
   pending,
   accepted,
   declined,
-  completed;
+  completed,
+
+  /// The patient said the booked time doesn't work and asked for another.
+  rescheduleRequested;
 
   String get label {
     switch (this) {
@@ -17,6 +20,8 @@ enum ConsultationStatus {
         return 'Declined';
       case ConsultationStatus.completed:
         return 'Completed';
+      case ConsultationStatus.rescheduleRequested:
+        return 'Reschedule requested';
     }
   }
 }
@@ -40,6 +45,11 @@ class ConsultationRequest {
   /// the patient sees this (unlike the screening result itself).
   String? psychologistNote;
 
+  /// Why the patient can't make the booked time (set with
+  /// [ConsultationStatus.rescheduleRequested]).
+  String? rescheduleReason;
+  DateTime? rescheduleRequestedAt;
+
   ConsultationRequest({
     required this.id,
     required this.patientName,
@@ -51,6 +61,8 @@ class ConsultationRequest {
     DateTime? requestedAt,
     this.scheduledAt,
     this.psychologistNote,
+    this.rescheduleReason,
+    this.rescheduleRequestedAt,
   }) : requestedAt = requestedAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
@@ -64,6 +76,8 @@ class ConsultationRequest {
         'message': message,
         'scheduledAt': scheduledAt?.millisecondsSinceEpoch,
         'psychologistNote': psychologistNote,
+        'rescheduleReason': rescheduleReason,
+        'rescheduleRequestedAt': rescheduleRequestedAt?.millisecondsSinceEpoch,
       };
 
   factory ConsultationRequest.fromJson(Map<String, dynamic> json) {
@@ -82,6 +96,11 @@ class ConsultationRequest {
           ? null
           : DateTime.fromMillisecondsSinceEpoch(json['scheduledAt'] as int),
       psychologistNote: json['psychologistNote'] as String?,
+      rescheduleReason: json['rescheduleReason'] as String?,
+      rescheduleRequestedAt: json['rescheduleRequestedAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              json['rescheduleRequestedAt'] as int),
     );
   }
 

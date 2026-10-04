@@ -1,39 +1,22 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../data/seed_psychologists.dart';
 import '../models/user_model.dart';
-import 'firestore_service.dart';
 import 'local_store.dart';
 
-/// Firebase-backed authentication service.
+/// Local authentication service (test build).
 ///
-/// Handles sign-up, sign-in, sign-out, and auth state persistence.
-/// User role (patient / psychologist) is stored in Firestore.
+/// Username + password accounts and demo accounts live in the on-device
+/// [LocalStore]; the logged-in user is remembered across refreshes.
 class AuthService extends ChangeNotifier {
-  /// Null when Firebase isn't available (tests, offline start). Local and
-  /// demo accounts still work without it.
-  final FirebaseAuth? _auth = _tryFirebaseAuth();
-
-  static FirebaseAuth? _tryFirebaseAuth() {
-    try {
-      return FirebaseAuth.instance;
-    } catch (e) {
-      debugPrint('Firebase Auth unavailable: $e');
-      return null;
-    }
-  }
-  final FirestoreService _firestore = FirestoreService();
-
   AppUser? _currentUser;
-  bool _isLoading = false;
   String? _error;
 
   AppUser? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
   bool get isPsychologist => _currentUser?.role == UserRole.psychologist;
-  bool get isLoading => _isLoading;
+  bool get isLoading => false;
   String? get error => _error;
 
   bool _sessionLoaded = false;
@@ -43,12 +26,7 @@ class AuthService extends ChangeNotifier {
 
   AuthService() {
     _restoreSession();
-    // Listen to Firebase auth state changes for auto-login
-    _auth?.authStateChanges().listen(_onAuthStateChanged);
   }
-
-  static bool _isLocalId(String? id) =>
-      id != null && (id.startsWith('demo_') || id.startsWith('local_'));
 
   Future<void> _restoreSession() async {
     try {
@@ -97,6 +75,7 @@ class AuthService extends ChangeNotifier {
     required String password,
     required String name,
     required UserRole role,
+    String? psychologistId,
   }) async {
     _error = null;
     final user = username.trim().toLowerCase();
@@ -121,13 +100,18 @@ class AuthService extends ChangeNotifier {
       'hash': _hash(salt, password),
       'name': name.trim(),
       'role': role.name,
+      'psychologistId': role == UserRole.psychologist
+          ? (psychologistId ?? 'psy_001')
+          : null,
     });
     return _startLocalSession(AppUser(
       id: id,
       name: name.trim(),
       email: '$user@mindcare.local',
       role: role,
-      psychologistId: role == UserRole.psychologist ? 'psy_001' : null,
+      psychologistId: role == UserRole.psychologist
+          ? (psychologistId ?? 'psy_001')
+          : null,
     ));
   }
 
@@ -153,7 +137,9 @@ class AuthService extends ChangeNotifier {
       name: account['name'] as String,
       email: '$user@mindcare.local',
       role: role,
-      psychologistId: role == UserRole.psychologist ? 'psy_001' : null,
+      psychologistId: role == UserRole.psychologist
+          ? (account['psychologistId'] as String? ?? 'psy_001')
+          : null,
     ));
   }
 
@@ -164,121 +150,10 @@ class AuthService extends ChangeNotifier {
     return true;
   }
 
-  bool _finishError(String message) {
-    _error = message;
-    _isLoading = false;
-    notifyListeners();
-    return false;
-  }
-
   bool _fail(String message) {
     _error = message;
     notifyListeners();
     return false;
-  }
-
-  /// Role chosen on the login screen, used when the Firestore profile
-  /// can't be read (test setup without Firestore).
-  UserRole _pendingRole = UserRole.patient;
-  String? _pendingPsychologistId;
-
-  /// Called when Firebase auth state changes (login, logout, app start).
-  Future<void> _onAuthStateChanged(User? firebaseUser) async {
-    if (firebaseUser == null) {
-      if (!_isLocalId(_currentUser?.id)) {
-        _currentUser = null;
-        notifyListeners();
-      }
-      return;
-    }
-    if (_currentUser?.id == firebaseUser.uid) return;
-
-    // Fetch user profile from Firestore (never wait on it for long)
-    Map<String, dynamic>? userData;
-    try {
-      userData = await _firestore
-          .getUser(firebaseUser.uid)
-          .timeout(const Duration(seconds: 5));
-    } catch (e) {
-      debugPrint('Error fetching user data: $e');
-    }
-    if (_currentUser?.id == firebaseUser.uid) return;
-
-    _currentUser = AppUser(
-      id: firebaseUser.uid,
-      name: (userData?['name'] as String?) ??
-          firebaseUser.displayName ??
-          'User',
-      email: firebaseUser.email ?? '',
-      role: userData != null
-          ? (userData['role'] == 'psychologist'
-              ? UserRole.psychologist
-              : UserRole.patient)
-          : _pendingRole,
-      psychologistId: (userData?['psychologistId'] as String?) ??
-          _pendingPsychologistId,
-    );
-    notifyListeners();
-  }
-
-  /// Sign in with a Google account (no password, no 2FA).
-  ///
-  /// The Google provider must be enabled in Firebase Console ->
-  /// Authentication -> Sign-in method.
-  Future<bool> signInWithGoogle({
-    required UserRole role,
-    String? psychologistId,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    _pendingRole = role;
-    _pendingPsychologistId = psychologistId;
-    notifyListeners();
-
-    try {
-      final auth = _auth;
-      if (auth == null) {
-        return _finishError('Google sign-in is unavailable right now.');
-      }
-      final provider = GoogleAuthProvider();
-      final credential = kIsWeb
-          ? await auth.signInWithPopup(provider)
-          : await auth.signInWithProvider(provider);
-      final user = credential.user!;
-
-      _currentUser = AppUser(
-        id: user.uid,
-        name: user.displayName ?? 'User',
-        email: user.email ?? '',
-        role: role,
-        psychologistId: psychologistId,
-      );
-
-      // Save the profile in the background; login must not depend on it.
-      unawaited(_firestore
-          .saveUser(
-            uid: user.uid,
-            name: _currentUser!.name,
-            email: _currentUser!.email,
-            role: role == UserRole.psychologist ? 'psychologist' : 'patient',
-          )
-          .timeout(const Duration(seconds: 8))
-          .catchError((Object e) => debugPrint('Profile save failed: $e')));
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _error = _mapAuthError(e.code);
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _error = 'Google sign-in failed: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
   }
 
   /// Fixed fake accounts for the test build. Their ids never change, so
@@ -286,17 +161,19 @@ class AuthService extends ChangeNotifier {
   static const demoPatientId = 'demo_patient';
   static const demoPsychologistId = 'demo_psychologist';
 
-  /// Log in as a fake user or psychologist without Firebase. Data is kept
+  /// Log in as a fake user or psychologist. Data is kept
   /// in the on-device [LocalStore].
-  Future<bool> signInAsDemo(UserRole role) async {
+  Future<bool> signInAsDemo(UserRole role,
+      {String psychologistId = 'psy_001'}) async {
     _error = null;
     _currentUser = role == UserRole.psychologist
-        ? const AppUser(
-            id: demoPsychologistId,
-            name: 'Dr. Sarah Mitchell',
+        ? AppUser(
+            id: '${demoPsychologistId}_$psychologistId',
+            name: SeedPsychologists.getById(psychologistId)?.name ??
+                'Psychologist',
             email: 'doctor.demo@mindcare.app',
             role: UserRole.psychologist,
-            psychologistId: 'psy_001',
+            psychologistId: psychologistId,
           )
         : const AppUser(
             id: demoPatientId,
@@ -309,18 +186,8 @@ class AuthService extends ChangeNotifier {
     return true;
   }
 
-  /// True for the fake accounts above (data goes to LocalStore, not Firestore).
-  bool get isDemo =>
-      _currentUser?.id == demoPatientId ||
-      _currentUser?.id == demoPsychologistId;
-
   /// Sign out.
   Future<void> signOut() async {
-    try {
-      await _auth?.signOut();
-    } catch (e) {
-      debugPrint('Firebase signOut failed: $e');
-    }
     _currentUser = null;
     await LocalStore.instance.writeAll('session', []);
     notifyListeners();
@@ -333,44 +200,5 @@ class AuthService extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
-  }
-
-  /// Map Firebase error codes to user-friendly messages.
-  String _mapAuthError(String code) {
-    switch (code) {
-      case 'email-already-in-use':
-        return 'This email is already registered. Try signing in.';
-      case 'invalid-email':
-        return 'Please enter a valid email address.';
-      case 'weak-password':
-        return 'Password must be at least 6 characters.';
-      case 'user-not-found':
-        return 'No account found with this email.';
-      case 'wrong-password':
-        return 'Incorrect password. Please try again.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please wait and try again.';
-      case 'invalid-credential':
-        return 'Invalid email or password. Please try again.';
-      case 'configuration-not-found':
-        return 'Firebase Authentication is not set up for this project yet. '
-            'In Firebase Console open Authentication, click Get started, then '
-            'enable the Google sign-in method. Or use the demo login below.';
-      case 'operation-not-allowed':
-        return 'Google sign-in is not enabled. In Firebase Console open '
-            'Authentication > Sign-in method and enable Google.';
-      case 'unauthorized-domain':
-        return 'This domain is not authorised. In Firebase Console open '
-            'Authentication > Settings > Authorized domains and add it.';
-      case 'popup-blocked':
-        return 'The sign-in popup was blocked. Allow popups and try again.';
-      case 'popup-closed-by-user':
-      case 'cancelled-popup-request':
-        return 'Sign-in was cancelled.';
-      case 'network-request-failed':
-        return 'Network error. Check your connection and try again.';
-      default:
-        return 'Authentication error ($code). Please try again.';
-    }
   }
 }

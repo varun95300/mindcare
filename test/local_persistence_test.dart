@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mindcare/services/local_store.dart';
 import 'package:mindcare/models/consultation.dart';
 import 'package:mindcare/models/quiz_question.dart';
 import 'package:mindcare/models/text_analysis.dart';
@@ -11,7 +12,11 @@ Future<void> settle() => Future.delayed(const Duration(milliseconds: 50));
 
 void main() {
   engineRestoreTests();
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  rescheduleAndRemoveTests();
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    LocalStore.instance.resetCache();
+  });
 
   test('screening result survives a JSON round trip', () {
     final engine = AdaptiveEngine();
@@ -38,7 +43,7 @@ void main() {
     final first = ConsultationService();
     await settle();
     final seeded = first.allRequests.length;
-    expect(seeded, 3);
+    expect(seeded, 7);
 
     final engine = AdaptiveEngine();
     engine.recordAnswer(engine.selectNextQuestion()!, LikertResponse.often);
@@ -77,5 +82,33 @@ void engineRestoreTests() {
     expect(b.selectionReasons, a.selectionReasons.sublist(0, 2));
     // Same next question as if it had never been interrupted.
     expect(b.selectNextQuestion()!.id, a.selectNextQuestion()!.id);
+  });
+}
+
+void rescheduleAndRemoveTests() {
+  test('patient asks to reschedule, doctor rebooks, patient removes', () async {
+    final service = ConsultationService();
+    await settle();
+    final zoya = service.allRequests.firstWhere((r) => r.id == 'req_seed_7');
+    expect(zoya.status, ConsultationStatus.accepted);
+
+    service.requestReschedule(zoya.id, reason: 'I have exams');
+    expect(zoya.status, ConsultationStatus.rescheduleRequested);
+    expect(zoya.rescheduleReason, 'I have exams');
+    // No longer counted as a booked slot
+    expect(
+        service.scheduledAppointments('psy_008').any((r) => r.id == zoya.id),
+        isFalse);
+
+    final newTime = DateTime.now().add(const Duration(days: 3));
+    service.acceptAndSchedule(zoya.id, scheduledAt: newTime, note: 'Sure');
+    expect(zoya.status, ConsultationStatus.accepted);
+    expect(zoya.rescheduleReason, isNull);
+
+    service.removeRequest(zoya.id);
+    await settle();
+    final reloaded = ConsultationService();
+    await settle();
+    expect(reloaded.allRequests.any((r) => r.id == zoya.id), isFalse);
   });
 }

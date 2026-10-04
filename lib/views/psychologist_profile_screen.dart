@@ -281,7 +281,11 @@ class _AlreadySentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheduledLabel = request.scheduledAtLabel;
+    final scheduledLabel = request.status == ConsultationStatus.accepted
+        ? request.scheduledAtLabel
+        : null;
+    final rescheduling =
+        request.status == ConsultationStatus.rescheduleRequested;
 
     if (scheduledLabel == null) {
       return Container(
@@ -298,7 +302,9 @@ class _AlreadySentCard extends StatelessWidget {
                 color: MindCareTheme.success, size: 22),
             const SizedBox(width: MindCareTheme.spacingSm),
             Text(
-              'You\'ve reached out — they\'ll respond soon.',
+              rescheduling
+                  ? 'You asked for a new time. They will get back to you.'
+                  : 'You\'ve reached out — they\'ll respond soon.',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: MindCareTheme.success,
                   ),

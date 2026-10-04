@@ -3,11 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
+import '../data/seed_psychologists.dart';
 import '../models/user_model.dart';
+import '../widgets/ui.dart';
 
 /// Sign in / create account. Username + password accounts are stored on this
-/// device (test build); Google sign-in and a one-tap demo login are also
-/// offered. After a successful login this screen just pops: the session gate
+/// device (test build); and a one-tap demo login are also offered. After a successful login this screen just pops: the session gate
 /// in main.dart shows the right home screen.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isSignUp = false;
   bool _obscurePassword = true;
   bool _busy = false;
+  String _psychologistId = SeedPsychologists.all.first.id;
 
   UserRole get _role => _isPatient ? UserRole.patient : UserRole.psychologist;
 
@@ -51,6 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
             password: _passwordController.text,
             name: _nameController.text,
             role: _role,
+            psychologistId: _isPatient ? null : _psychologistId,
           )
         : await auth.signInLocal(
             username: _usernameController.text,
@@ -60,19 +63,9 @@ class _LoginScreenState extends State<LoginScreen> {
     _done(ok);
   }
 
-  Future<void> _google() async {
-    final auth = context.read<AuthService>();
-    auth.clearError();
-    final ok = await auth.signInWithGoogle(
-      role: _role,
-      psychologistId: _isPatient ? null : 'psy_001',
-    );
-    _done(ok);
-  }
-
   Future<void> _demo() async {
     final auth = context.read<AuthService>();
-    final ok = await auth.signInAsDemo(_role);
+    final ok = await auth.signInAsDemo(_role, psychologistId: _psychologistId);
     _done(ok);
   }
 
@@ -84,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: MindCareTheme.background,
       appBar: AppBar(title: Text(_isSignUp ? 'Create Account' : 'Sign In')),
-      body: SafeArea(
+      body: _frame(SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
@@ -120,6 +113,37 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   const SizedBox(height: MindCareTheme.spacingXl),
+
+                  if (!_isPatient) ...[
+                    Text('Psychologist profile',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: MindCareTheme.spacingSm),
+                    DropdownButtonFormField<String>(
+                      initialValue: _psychologistId,
+                      isExpanded: true,
+                      decoration: _inputDecoration('Choose your profile'),
+                      items: [
+                        for (final p in SeedPsychologists.all)
+                          DropdownMenuItem(
+                            value: p.id,
+                            child: Text('${p.name} - ${p.title}',
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _psychologistId = v ?? _psychologistId),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Used when you create an account or use the quick demo login. '
+                      'Signing in to an existing account uses the profile it was created with.',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(fontSize: 12),
+                    ),
+                    const SizedBox(height: MindCareTheme.spacingMd),
+                  ],
 
                   if (_isSignUp) ...[
                     Text('Your Name',
@@ -215,15 +239,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Divider(height: MindCareTheme.spacingXl),
 
                   OutlinedButton.icon(
-                    onPressed: busy ? null : _google,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    icon: const Icon(Icons.login),
-                    label: const Text('Continue with Google'),
-                  ),
-                  const SizedBox(height: MindCareTheme.spacingSm),
-                  OutlinedButton.icon(
                     onPressed: busy ? null : _demo,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -249,7 +264,65 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
+      )),
+    );
+  }
+
+  /// On wide screens the form sits next to a brand panel.
+  Widget _frame(Widget form) {
+    if (!Breakpoints.isWide(context)) return form;
+    final text = Theme.of(context).textTheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: const BoxDecoration(
+                gradient: MindCareTheme.primaryGradient),
+            padding: const EdgeInsets.all(56),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.psychology, color: Colors.white, size: 56),
+                const SizedBox(height: 24),
+                Text('MindCare',
+                    style: text.displayLarge
+                        ?.copyWith(color: Colors.white, fontSize: 44)),
+                const SizedBox(height: 12),
+                Text(
+                  'A calm, private way to talk through how you feel, and to find the right psychologist.',
+                  style: text.bodyLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      fontSize: 18,
+                      height: 1.5),
+                ),
+                const SizedBox(height: 36),
+                for (final line in const [
+                  'Chat in your own words, no forms',
+                  'Analysed on your device, shared only with your psychologist',
+                  'Book and manage appointments in one place',
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline,
+                            color: Colors.white, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(line,
+                              style: text.bodyLarge
+                                  ?.copyWith(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(child: form),
+      ],
     );
   }
 
