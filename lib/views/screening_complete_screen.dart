@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../config/theme.dart';
-import '../viewmodels/quiz_viewmodel.dart';
+import '../models/screening_result.dart';
+import 'share_more_screen.dart';
 import 'recommendations_screen.dart';
 
-/// Shown to the patient right after the quiz — deliberately shows no
-/// domain scores or severity labels. The patient should never see their
-/// own screening result; only the psychologist they reach out to does.
-/// This keeps the psychologist as the one who interprets the result,
-/// rather than letting the patient self-diagnose and disengage.
+/// Shown to the patient right after the chatbot conversation — deliberately
+/// shows no domain scores or severity labels. The patient should never see
+/// their own screening result; only the psychologist they reach out to does.
 class ScreeningCompleteScreen extends StatelessWidget {
   const ScreeningCompleteScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<QuizViewModel>();
-    final result = vm.result;
+    // Accept the result from route arguments (passed by ChatScreeningScreen)
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final result = args?['result'] as ScreeningResult?;
+    final screeningId = args?['screeningId'] as String?;
 
     if (result == null) {
       return const Scaffold(
@@ -63,6 +64,28 @@ class ScreeningCompleteScreen extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: MindCareTheme.spacingXxl),
+                  // Optional: share more
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ShareMoreScreen(
+                              result: result,
+                              screeningId: screeningId,
+                            ),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: MindCareTheme.primary),
+                      ),
+                      child: const Text('Share More (Optional)'),
+                    ),
+                  ),
+                  const SizedBox(height: MindCareTheme.spacingMd),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
+import '../models/user_model.dart';
 import 'quiz_intro_screen.dart';
 import 'psychologist/dashboard_screen.dart';
 
@@ -14,19 +16,77 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isPatient = true;
+  bool _isSignUp = true; // true = sign up, false = sign in
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSubmit() async {
+    final auth = context.read<AuthService>();
+    auth.clearError();
+
+    bool success;
+    if (_isSignUp) {
+      if (_isPatient && _nameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your name')),
+        );
+        return;
+      }
+      success = await auth.signUp(
+        email: _emailController.text,
+        password: _passwordController.text,
+        name: _isPatient
+            ? _nameController.text.trim()
+            : 'Dr. Sarah Mitchell',
+        role: _isPatient ? UserRole.patient : UserRole.psychologist,
+        psychologistId: _isPatient ? null : 'psy_001',
+      );
+    } else {
+      success = await auth.signIn(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+    }
+
+    if (success && mounted) {
+      // Small delay to let auth state listener fire
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+
+      final user = auth.currentUser;
+      if (user != null) {
+        if (user.role == UserRole.psychologist) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+                builder: (_) => const PsychologistDashboardScreen()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const QuizIntroScreen()),
+          );
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthService>();
+
     return Scaffold(
+      backgroundColor: MindCareTheme.background,
       appBar: AppBar(
-        title: const Text('Sign In'),
+        title: Text(_isSignUp ? 'Create Account' : 'Sign In'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -34,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: MindCareTheme.spacingXl),
+              const SizedBox(height: MindCareTheme.spacingMd),
 
               // Role Selection
               Text(
@@ -68,8 +128,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: MindCareTheme.spacingXl),
 
-              // Name input (patient only)
-              if (_isPatient) ...[
+              // Name input (patient sign-up only)
+              if (_isPatient && _isSignUp) ...[
                 Text(
                   'Your Name',
                   style: Theme.of(context).textTheme.titleMedium,
@@ -77,96 +137,153 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: MindCareTheme.spacingSm),
                 TextField(
                   controller: _nameController,
-                  decoration: InputDecoration(
-                    hintText: 'Enter your name',
-                    filled: true,
-                    fillColor: MindCareTheme.surface,
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(MindCareTheme.radiusMd),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(MindCareTheme.radiusMd),
-                      borderSide: BorderSide(
-                        color: MindCareTheme.textLight.withOpacity(0.3),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(MindCareTheme.radiusMd),
-                      borderSide: const BorderSide(
-                        color: MindCareTheme.primary,
-                        width: 2,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
+                  decoration: _inputDecoration('Enter your name'),
+                  textInputAction: TextInputAction.next,
                 ),
-                const SizedBox(height: MindCareTheme.spacingXl),
+                const SizedBox(height: MindCareTheme.spacingMd),
               ],
 
+              // Psychologist info
               if (!_isPatient) ...[
                 Container(
                   padding: const EdgeInsets.all(MindCareTheme.spacingMd),
                   decoration: BoxDecoration(
-                    color: MindCareTheme.primaryLight.withOpacity(0.3),
+                    color: MindCareTheme.primaryLight.withValues(alpha: 0.3),
                     borderRadius:
                         BorderRadius.circular(MindCareTheme.radiusMd),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.info_outline,
-                        color: MindCareTheme.primaryDark,
-                        size: 20,
-                      ),
+                      const Icon(Icons.info_outline,
+                          color: MindCareTheme.primaryDark, size: 20),
                       const SizedBox(width: MindCareTheme.spacingSm),
                       Expanded(
                         child: Text(
-                          'You will log in as Dr. Sarah Mitchell (demo psychologist)',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: MindCareTheme.primaryDark,
-                              ),
+                          _isSignUp
+                              ? 'You will be linked to the demo psychologist profile (Dr. Sarah Mitchell)'
+                              : 'Sign in with your psychologist account',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: MindCareTheme.primaryDark),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: MindCareTheme.spacingXl),
+                const SizedBox(height: MindCareTheme.spacingMd),
               ],
 
-              // Continue Button
+              // Email
+              Text('Email', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: MindCareTheme.spacingSm),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: _inputDecoration('your@email.com'),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: MindCareTheme.spacingMd),
+
+              // Password
+              Text('Password', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: MindCareTheme.spacingSm),
+              TextField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                decoration: _inputDecoration('At least 6 characters').copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: MindCareTheme.textSecondary,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleSubmit(),
+              ),
+              const SizedBox(height: MindCareTheme.spacingSm),
+
+              // Error message
+              if (auth.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    auth.error!,
+                    style: GoogleFonts.inter(
+                      color: MindCareTheme.error,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: MindCareTheme.spacingXl),
+
+              // Submit button
               ElevatedButton(
-                onPressed: () {
-                  final auth = context.read<AuthService>();
-                  if (_isPatient) {
-                    auth.loginAsPatient(_nameController.text.trim());
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                          builder: (_) => const QuizIntroScreen()),
-                    );
-                  } else {
-                    auth.loginAsPsychologist();
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                          builder: (_) => const PsychologistDashboardScreen()),
-                    );
-                  }
-                },
+                onPressed: auth.isLoading ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
                 ),
-                child: Text(_isPatient ? 'Continue' : 'Log In as Psychologist'),
+                child: auth.isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(_isSignUp ? 'Create Account' : 'Sign In'),
+              ),
+              const SizedBox(height: MindCareTheme.spacingMd),
+
+              // Toggle sign-up / sign-in
+              TextButton(
+                onPressed: () {
+                  setState(() => _isSignUp = !_isSignUp);
+                  auth.clearError();
+                },
+                child: Text(
+                  _isSignUp
+                      ? 'Already have an account? Sign In'
+                      : "Don't have an account? Sign Up",
+                  style: GoogleFonts.inter(
+                    color: MindCareTheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: MindCareTheme.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+        borderSide:
+            BorderSide(color: MindCareTheme.textLight.withValues(alpha: 0.3)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+        borderSide: const BorderSide(color: MindCareTheme.primary, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 }
@@ -195,11 +312,13 @@ class _RoleCard extends StatelessWidget {
         padding: const EdgeInsets.all(MindCareTheme.spacingLg),
         decoration: BoxDecoration(
           color: isSelected
-              ? MindCareTheme.primaryLight.withOpacity(0.3)
+              ? MindCareTheme.primaryLight.withValues(alpha: 0.3)
               : MindCareTheme.surface,
           borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
           border: Border.all(
-            color: isSelected ? MindCareTheme.primary : MindCareTheme.textLight.withOpacity(0.3),
+            color: isSelected
+                ? MindCareTheme.primary
+                : MindCareTheme.textLight.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -208,20 +327,27 @@ class _RoleCard extends StatelessWidget {
             Icon(
               icon,
               size: 40,
-              color: isSelected ? MindCareTheme.primary : MindCareTheme.textSecondary,
+              color: isSelected
+                  ? MindCareTheme.primary
+                  : MindCareTheme.textSecondary,
             ),
             const SizedBox(height: MindCareTheme.spacingSm),
             Text(
               label,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: isSelected ? MindCareTheme.primary : MindCareTheme.textPrimary,
+                    color: isSelected
+                        ? MindCareTheme.primary
+                        : MindCareTheme.textPrimary,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ],

@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../config/theme.dart';
-import '../viewmodels/quiz_viewmodel.dart';
-import 'processing_screen.dart';
+import '../models/screening_result.dart';
+import 'recommendations_screen.dart';
 
-/// Shown right after the last question — an optional space for the patient
+/// Shown right after screening — an optional space for the patient
 /// to describe, in their own words, whatever prompted them to check in.
 /// Entirely skippable. Whatever is written here is only ever shown to the
 /// psychologist they eventually reach out to, never back to the patient.
 class ShareMoreScreen extends StatefulWidget {
-  const ShareMoreScreen({super.key});
+  final ScreeningResult result;
+  final String? screeningId;
+
+  const ShareMoreScreen({
+    super.key,
+    required this.result,
+    this.screeningId,
+  });
 
   @override
   State<ShareMoreScreen> createState() => _ShareMoreScreenState();
@@ -25,9 +31,15 @@ class _ShareMoreScreenState extends State<ShareMoreScreen> {
   }
 
   void _continue() {
-    context.read<QuizViewModel>().setPatientNote(_controller.text);
+    // Attach the note to the result
+    final note = _controller.text.trim();
+    if (note.isNotEmpty) {
+      widget.result.patientNote = note;
+    }
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const ProcessingScreen()),
+      MaterialPageRoute(
+        builder: (_) => RecommendationsScreen(result: widget.result),
+      ),
     );
   }
 
@@ -65,19 +77,23 @@ class _ShareMoreScreenState extends State<ShareMoreScreen> {
                       'things have been feeling lately...',
                   filled: true,
                   fillColor: MindCareTheme.surface,
-                  contentPadding: const EdgeInsets.all(MindCareTheme.spacingMd),
+                  contentPadding:
+                      const EdgeInsets.all(MindCareTheme.spacingMd),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+                    borderRadius:
+                        BorderRadius.circular(MindCareTheme.radiusMd),
                     borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+                    borderRadius:
+                        BorderRadius.circular(MindCareTheme.radiusMd),
                     borderSide: BorderSide(
-                      color: MindCareTheme.textLight.withOpacity(0.3),
+                      color: MindCareTheme.textLight.withValues(alpha: 0.3),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+                    borderRadius:
+                        BorderRadius.circular(MindCareTheme.radiusMd),
                     borderSide: const BorderSide(
                       color: MindCareTheme.primary,
                       width: 2,

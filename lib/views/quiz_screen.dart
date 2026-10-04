@@ -50,7 +50,9 @@ class _QuizScreenState extends State<QuizScreen>
     if (vm.result != null) {
       // Quiz complete — offer an optional space to share more first
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const ShareMoreScreen()),
+        MaterialPageRoute(
+          builder: (_) => ShareMoreScreen(result: vm.result!),
+        ),
       );
     } else {
       // Animate to next question

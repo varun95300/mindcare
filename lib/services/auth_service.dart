@@ -76,28 +76,12 @@ class AuthService extends ChangeNotifier {
       final uid = credential.user!.uid;
 
       // Save profile to Firestore
-      final Map<String, dynamic> userData = {
-        'name': name.trim(),
-        'email': email.trim(),
-        'role': role == UserRole.psychologist ? 'psychologist' : 'patient',
-      };
-      if (psychologistId != null) {
-        userData['psychologistId'] = psychologistId;
-      }
-
       await _firestore.saveUser(
         uid: uid,
         name: name.trim(),
         email: email.trim(),
         role: role == UserRole.psychologist ? 'psychologist' : 'patient',
       );
-
-      // If psychologist, also link psychologistId in user doc
-      if (role == UserRole.psychologist && psychologistId != null) {
-        await _firestore._db.collection('users').doc(uid).update({
-          'psychologistId': psychologistId,
-        });
-      }
 
       _currentUser = AppUser(
         id: uid,
@@ -161,6 +145,9 @@ class AuthService extends ChangeNotifier {
     _currentUser = null;
     notifyListeners();
   }
+
+  /// Sign out alias for backwards compatibility.
+  Future<void> logout() => signOut();
 
   /// Clear error state.
   void clearError() {

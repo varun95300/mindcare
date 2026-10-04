@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
-import '../../models/quiz_question.dart';
 import '../../models/consultation.dart';
-import '../../models/screening_result.dart';
 import '../../services/auth_service.dart';
 import '../../services/consultation_service.dart';
 import '../../data/seed_psychologists.dart';

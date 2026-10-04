@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
-import '../viewmodels/quiz_viewmodel.dart';
-import 'quiz_screen.dart';
+import 'chat_screening_screen.dart';
 
 class QuizIntroScreen extends StatelessWidget {
   const QuizIntroScreen({super.key});
@@ -19,7 +18,7 @@ class QuizIntroScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              context.read<AuthService>().logout();
+              context.read<AuthService>().signOut();
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
           ),
@@ -161,15 +160,15 @@ class QuizIntroScreen extends StatelessWidget {
               // Start Button
               ElevatedButton(
                 onPressed: () {
-                  context.read<QuizViewModel>().startQuiz();
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const QuizScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const ChatScreeningScreen()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
                 ),
-                child: const Text('I\'m Ready to Begin'),
+                child: const Text('Start Conversation'),
               ),
               const SizedBox(height: MindCareTheme.spacingMd),
             ],

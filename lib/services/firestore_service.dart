@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/screening_result.dart';
-import '../models/quiz_question.dart';
-import '../models/domain_evidence.dart';
 import '../models/chat_message.dart';
 
 /// Central service for all Firestore read/write operations.

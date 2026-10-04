@@ -22,6 +22,7 @@ class MindCareTheme {
   static const Color error = Color(0xFFC1584A);          // Muted brick
   static const Color success = Color(0xFF5E8F5A);        // Leaf green
   static const Color warning = Color(0xFFC9A661);        // Soft ochre
+  static const Color border = Color(0xFFE2DDD3);         // Subtle warm border
 
   // Domain colors — tints within the same grounded family rather than
   // unrelated hues, so the report screen doesn't feel alarmist.

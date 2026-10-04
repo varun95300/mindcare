@@ -1,6 +1,5 @@
 import 'quiz_question.dart';
 import 'quiz_answer.dart';
-import 'domain_evidence.dart';
 
 /// The final screening result with full explanation data.
 class ScreeningResult {

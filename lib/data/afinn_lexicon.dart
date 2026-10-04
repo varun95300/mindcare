@@ -233,9 +233,7 @@ class AfinnLexicon {
     'slow': -1,
     'sore': -1,
     'strain': -1, 'strained': -1,
-    'struggle': -1,
     'tough': -1,
-    'uncertain': -1,
     'wait': -1, 'waiting': -1,
 
     // === Positive (+1 to +2) ===

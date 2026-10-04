@@ -2,9 +2,15 @@ import '../models/quiz_question.dart';
 import '../models/quiz_answer.dart';
 import '../models/domain_evidence.dart';
 import '../models/screening_result.dart';
+import 'adaptive_engine.dart';
 
 /// Generates explainable screening reports from quiz evidence.
 class ReportGenerator {
+  /// Convenience: generate a report directly from an [AdaptiveEngine].
+  static ScreeningResult generateReport({required AdaptiveEngine engine}) {
+    return generate(evidence: engine.evidence, answers: engine.answers);
+  }
+
   /// Generate a complete screening result with explanations.
   static ScreeningResult generate({
     required DomainEvidence evidence,
