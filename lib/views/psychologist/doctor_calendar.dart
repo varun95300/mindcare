@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/motion.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/consultation.dart';
@@ -87,7 +88,7 @@ class _DoctorCalendarState extends State<DoctorCalendar> {
     final reason = TextEditingController();
     String? error;
 
-    final ok = await showDialog<bool>(
+    final ok = await showSoftDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
@@ -197,7 +198,7 @@ class _DoctorCalendarState extends State<DoctorCalendar> {
 
   Future<void> _removeBlockDialog(TimeBlock b) async {
     final service = context.read<ConsultationService>();
-    final ok = await showDialog<bool>(
+    final ok = await showSoftDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(b.reason.isEmpty ? 'Blocked time' : b.reason),
@@ -282,7 +283,7 @@ class _DoctorCalendarState extends State<DoctorCalendar> {
             children: const [
               _Legend(color: MindCareTheme.primary, label: 'Appointment'),
               _Legend(color: MindCareTheme.accent, label: 'Reschedule requested'),
-              _Legend(color: Color(0xFF8C8C84), label: 'Blocked'),
+              _Legend(color: MindCareTheme.textSecondary, label: 'Blocked'),
             ],
           ),
           const SizedBox(height: 12),
@@ -466,21 +467,21 @@ class _DayColumn extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF8C8C84).withValues(alpha: 0.22),
-                      border: Border.all(color: const Color(0xFF8C8C84)),
+                      color: MindCareTheme.textSecondary.withValues(alpha: 0.16),
+                      border: Border.all(color: MindCareTheme.textSecondary.withValues(alpha: 0.6)),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       children: [
                         const Icon(Icons.lock_outline,
-                            size: 12, color: Color(0xFF5C5C55)),
+                            size: 12, color: MindCareTheme.textSecondary),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             b.reason.isEmpty ? 'Blocked' : b.reason,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontSize: 11, color: Color(0xFF4A4A44)),
+                                fontSize: 11, color: MindCareTheme.textPrimary),
                           ),
                         ),
                       ],

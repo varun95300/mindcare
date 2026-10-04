@@ -251,7 +251,7 @@ class _AnswerOption extends StatelessWidget {
                 ),
               ),
               child: isSelected
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  ? const Icon(Icons.check, size: 14, color: MindCareTheme.textPrimary)
                   : null,
             ),
             const SizedBox(width: MindCareTheme.spacingMd),

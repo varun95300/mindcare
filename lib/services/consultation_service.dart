@@ -17,6 +17,10 @@ class ConsultationService extends ChangeNotifier {
   static const _blocksCollection = 'time_blocks';
   final List<ConsultationRequest> _requests = [];
   final List<TimeBlock> _blocks = [];
+  bool _loaded = false;
+
+  /// False until saved requests have been read (drives skeleton loaders).
+  bool get loaded => _loaded;
 
   ConsultationService() {
     _load();
@@ -57,6 +61,8 @@ class ConsultationService extends ChangeNotifier {
       _persist();
     }
     await store.upsert('meta', {'id': 'meta', 'seedVersion': _seedVersion});
+    _loaded = true;
+    notifyListeners();
   }
 
   /// Bump when [addSeedRequests] gains new demo requests.

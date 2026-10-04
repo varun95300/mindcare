@@ -7,6 +7,7 @@ import 'package:mindcare/models/user_model.dart';
 import 'package:mindcare/services/auth_service.dart';
 import 'package:mindcare/services/consultation_service.dart';
 import 'package:mindcare/services/local_store.dart';
+import 'package:mindcare/services/mood_service.dart';
 import 'package:mindcare/views/login_screen.dart';
 import 'package:mindcare/views/psychologist/dashboard_screen.dart';
 import 'package:mindcare/views/quiz_intro_screen.dart';
@@ -18,6 +19,9 @@ Future<void> pumpScreen(
   required Size size,
   String psychologistId = 'psy_001',
 }) async {
+  tester.platformDispatcher.accessibilityFeaturesTestValue =
+      const FakeAccessibilityFeatures(disableAnimations: true);
+  addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -35,6 +39,7 @@ Future<void> pumpScreen(
     providers: [
       ChangeNotifierProvider.value(value: auth),
       ChangeNotifierProvider.value(value: consultations),
+      ChangeNotifierProvider(create: (_) => MoodService()),
     ],
     child: MaterialApp(theme: MindCareTheme.lightTheme, home: screen),
   ));
@@ -67,15 +72,28 @@ void main() {
         }
       });
 
-      testWidgets('patient home and appointments render', (tester) async {
+      testWidgets('patient workspace tabs render', (tester) async {
         await pumpScreen(tester, const QuizIntroScreen(), UserRole.patient,
             size: entry.value);
-        expect(find.textContaining('Start your wellness check-in'),
+        expect(find.text('How are you feeling today?'), findsOneWidget);
+        expect(find.textContaining('Take a moment for yourself today.'),
             findsOneWidget);
         expect(tester.takeException(), isNull);
-        await tester.tap(find.text('My appointments').first);
+
+        for (final tab in ['Journal', 'Mood', 'Wellness', 'Care', 'Home']) {
+          await tester.tap(find.text(tab).first);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: tab);
+        }
+
+        // Check in with a mood, then see it reflected.
+        await tester.tap(find.text('Calm').first);
         await tester.pumpAndSettle();
-        expect(find.text('No appointments yet'), findsOneWidget);
+        // The card settles into its "Checked in" state shortly after.
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+        expect(find.text('Checked in'), findsOneWidget);
+        expect(find.text("Today's check-in"), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
 

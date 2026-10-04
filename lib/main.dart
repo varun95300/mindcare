@@ -5,8 +5,11 @@ import 'firebase_options.dart';
 import 'config/theme.dart';
 import 'services/auth_service.dart';
 import 'services/consultation_service.dart';
+import 'services/mood_service.dart';
 import 'services/firestore_service.dart';
 import 'models/user_model.dart';
+import 'widgets/feedback.dart';
+import 'widgets/motion.dart';
 import 'views/welcome_screen.dart';
 import 'views/quiz_intro_screen.dart';
 import 'views/psychologist/dashboard_screen.dart';
@@ -25,6 +28,12 @@ void main() async {
   // Seed psychologist data to Firestore (idempotent). Not awaited: if
   // Firestore is slow or unreachable, the app must still start.
   _seedPsychologists();
+
+  // A calm card instead of the red error screen if a widget fails to build.
+  ErrorWidget.builder = (details) => const Material(
+        color: MindCareTheme.background,
+        child: GentleError(),
+      );
 
   runApp(const MindCareApp());
 }
@@ -82,11 +91,13 @@ class MindCareApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => ConsultationService()),
+        ChangeNotifierProvider(create: (_) => MoodService()),
       ],
       child: MaterialApp(
         title: 'MindCare',
         debugShowCheckedModeBanner: false,
         theme: MindCareTheme.lightTheme,
+        builder: (context, child) => ToastHost(child: child ?? const SizedBox()),
         home: const SessionGate(),
         routes: {
           '/screening-complete': (context) =>
@@ -106,13 +117,25 @@ class SessionGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
-    if (!auth.sessionLoaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
     final user = auth.currentUser;
-    if (user == null) return const WelcomeScreen();
-    return user.role == UserRole.psychologist
-        ? const PsychologistDashboardScreen()
-        : const QuizIntroScreen();
+
+    // Which screen should be showing, keyed so a change cross-fades.
+    final Widget screen;
+    if (!auth.sessionLoaded) {
+      screen = const LoadingScreen(key: ValueKey('loading'));
+    } else if (user == null) {
+      screen = const WelcomeScreen(key: ValueKey('welcome'));
+    } else if (user.role == UserRole.psychologist) {
+      screen = const PsychologistDashboardScreen(key: ValueKey('doctor'));
+    } else {
+      screen = const QuizIntroScreen(key: ValueKey('patient'));
+    }
+
+    return AnimatedSwitcher(
+      duration: Motion.of(context, const Duration(milliseconds: 320)),
+      switchInCurve: Motion.soft,
+      switchOutCurve: Curves.easeIn,
+      child: screen,
+    );
   }
 }

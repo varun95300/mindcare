@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import 'motion.dart';
 import 'ui.dart';
 
 class NavItem {
@@ -23,6 +24,10 @@ class AppShell extends StatelessWidget {
   final ValueChanged<String>? onMenuSelected;
   final Widget child;
 
+  /// Changes when the page changes, so the content eases in (fade + a few
+  /// pixels of rise) instead of being swapped instantly.
+  final Object? pageKey;
+
   const AppShell({
     super.key,
     required this.roleLabel,
@@ -35,6 +40,7 @@ class AppShell extends StatelessWidget {
     this.menuExtras = const [],
     this.onMenuSelected,
     required this.child,
+    this.pageKey,
   });
 
   @override
@@ -47,9 +53,31 @@ class AppShell extends StatelessWidget {
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints:
-              const BoxConstraints(maxWidth: Breakpoints.contentMaxWidth),
-          child: child,
+          constraints: const BoxConstraints(
+            maxWidth: Breakpoints.contentMaxWidth,
+          ),
+          child: AnimatedSwitcher(
+            duration: Motion.of(context, const Duration(milliseconds: 280)),
+            switchInCurve: Motion.soft,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder:
+                (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.012),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                ),
+            layoutBuilder:
+                (current, previous) => Stack(
+                  alignment: Alignment.topCenter,
+                  children: [...previous, if (current != null) current],
+                ),
+            child: KeyedSubtree(key: ValueKey(pageKey ?? 0), child: child),
+          ),
         ),
       ),
     );
@@ -70,7 +98,7 @@ class AppShell extends StatelessWidget {
               menuExtras: menuExtras,
               onMenuSelected: onMenuSelected,
             ),
-            Expanded(child: content),
+            Expanded(child: SoftBackdrop(child: content)),
           ],
         ),
       );
@@ -92,38 +120,43 @@ class AppShell extends StatelessWidget {
                 onMenuSelected?.call(v);
               }
             },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                enabled: false,
-                child: Text('$userName · $roleLabel'),
-              ),
-              ...menuExtras,
-              const PopupMenuItem(value: 'logout', child: Text('Sign out')),
-            ],
+            itemBuilder:
+                (_) => [
+                  PopupMenuItem(
+                    enabled: false,
+                    child: Text('$userName · $roleLabel'),
+                  ),
+                  ...menuExtras,
+                  const PopupMenuItem(value: 'logout', child: Text('Sign out')),
+                ],
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: content,
-      bottomNavigationBar: items.length > 1
-          ? NavigationBar(
-              selectedIndex: selectedIndex,
-              onDestinationSelected: onSelect,
-              backgroundColor: MindCareTheme.surface,
-              indicatorColor: MindCareTheme.primaryLight,
-              destinations: [
-                for (final i in items)
-                  NavigationDestination(
-                    icon: Badge(
-                      isLabelVisible: (i.badge ?? 0) > 0,
-                      label: Text('${i.badge}'),
-                      child: Icon(i.icon),
+      body: SoftBackdrop(child: content),
+      bottomNavigationBar:
+          items.length > 1
+              ? NavigationBar(
+                selectedIndex: selectedIndex < items.length ? selectedIndex : 0,
+                onDestinationSelected: onSelect,
+                backgroundColor: MindCareTheme.surface,
+                indicatorColor:
+                    selectedIndex < items.length
+                        ? MindCareTheme.primary.withValues(alpha: 0.35)
+                        : Colors.transparent,
+                destinations: [
+                  for (final i in items)
+                    NavigationDestination(
+                      icon: Badge(
+                        isLabelVisible: (i.badge ?? 0) > 0,
+                        label: Text('${i.badge}'),
+                        child: Icon(i.icon),
+                      ),
+                      label: i.label,
                     ),
-                    label: i.label,
-                  ),
-              ],
-            )
-          : null,
+                ],
+              )
+              : null,
     );
   }
 }
@@ -137,22 +170,13 @@ class _Logo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: compact ? 32 : 38,
-          height: compact ? 32 : 38,
-          decoration: BoxDecoration(
-            gradient: MindCareTheme.primaryGradient,
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: const Icon(Icons.psychology, color: Colors.white, size: 22),
-        ),
+        BrandMark(size: compact ? 32 : 38),
         const SizedBox(width: 10),
         Text(
           'MindCare',
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(fontSize: compact ? 18 : 20),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontSize: compact ? 18 : 20),
         ),
       ],
     );
@@ -231,17 +255,20 @@ class _Sidebar extends StatelessWidget {
                 onMenuSelected?.call(v);
               }
             },
-            itemBuilder: (_) => [
-              ...menuExtras,
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(children: [
-                  Icon(Icons.logout, size: 18),
-                  SizedBox(width: 10),
-                  Text('Sign out'),
-                ]),
-              ),
-            ],
+            itemBuilder:
+                (_) => [
+                  ...menuExtras,
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, size: 18),
+                        SizedBox(width: 10),
+                        Text('Sign out'),
+                      ],
+                    ),
+                  ),
+                ],
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Row(
@@ -252,17 +279,24 @@ class _Sidebar extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(userName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: text.titleMedium?.copyWith(fontSize: 14)),
-                        Text(roleLabel,
-                            style: text.bodyMedium?.copyWith(fontSize: 12)),
+                        Text(
+                          userName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.titleMedium?.copyWith(fontSize: 14),
+                        ),
+                        Text(
+                          roleLabel,
+                          style: text.bodyMedium?.copyWith(fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.unfold_more,
-                      size: 18, color: MindCareTheme.textLight),
+                  const Icon(
+                    Icons.unfold_more,
+                    size: 18,
+                    color: MindCareTheme.textLight,
+                  ),
                 ],
               ),
             ),
@@ -287,50 +321,69 @@ class _NavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color =
-        selected ? MindCareTheme.primaryDark : MindCareTheme.textSecondary;
+        selected ? MindCareTheme.textPrimary : MindCareTheme.textSecondary;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
-        color: selected ? MindCareTheme.primaryLight : Colors.transparent,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
-              children: [
-                Icon(item.icon, size: 20, color: color),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    item.label,
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                      fontSize: 14,
-                    ),
+        child: AnimatedContainer(
+          duration: Motion.of(context, Motion.normal),
+          curve: Motion.standard,
+          decoration: BoxDecoration(
+            color:
+                selected
+                    ? MindCareTheme.primary.withValues(alpha: 0.35)
+                    : Colors.transparent,
+            borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(MindCareTheme.radiusMd),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    item.icon,
+                    size: 20,
+                    color: selected ? MindCareTheme.primaryDark : color,
                   ),
-                ),
-                if ((item.badge ?? 0) > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: MindCareTheme.accent,
-                      borderRadius:
-                          BorderRadius.circular(MindCareTheme.radiusFull),
-                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Text(
-                      '${item.badge}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                      item.label,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                   ),
-              ],
+                  if ((item.badge ?? 0) > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: MindCareTheme.accent,
+                        borderRadius: BorderRadius.circular(
+                          MindCareTheme.radiusFull,
+                        ),
+                      ),
+                      child: Text(
+                        '${item.badge}',
+                        style: const TextStyle(
+                          color: MindCareTheme.textPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

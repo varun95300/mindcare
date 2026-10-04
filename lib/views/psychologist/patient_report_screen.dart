@@ -191,57 +191,30 @@ class _PatientInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(MindCareTheme.spacingLg),
-      decoration: BoxDecoration(
-        gradient: MindCareTheme.heroGradient,
-        borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
-      ),
+    final text = Theme.of(context).textTheme;
+    return Panel(
+      color: MindCareTheme.primaryLight,
+      borderColor: MindCareTheme.primary.withValues(alpha: 0.4),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                request.patientName[0],
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
+          Avatar(request.patientName, size: 56),
           const SizedBox(width: MindCareTheme.spacingMd),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(request.patientName, style: text.headlineMedium),
                 Text(
-                  request.patientName,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.headlineMedium?.copyWith(color: Colors.white),
-                ),
-                Text(
-                  'Screening completed • ${request.screeningResult.totalQuestions} questions',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 13,
-                  ),
+                  'Screening completed · ${request.screeningResult.totalQuestions} questions',
+                  style: text.bodyMedium?.copyWith(fontSize: 13),
                 ),
                 if (request.message != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     'Message: "${request.message}"',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.7),
+                    style: text.bodyMedium?.copyWith(
                       fontStyle: FontStyle.italic,
-                      fontSize: 12,
+                      fontSize: 13,
                     ),
                   ),
                 ],
@@ -254,9 +227,6 @@ class _PatientInfoCard extends StatelessWidget {
   }
 }
 
-/// Shows what the patient wrote in their own words, right after the quiz.
-/// This is free-text, not scored — it's meant to give the psychologist
-/// context in the patient's own voice, alongside the structured evidence.
 class _PatientNoteCard extends StatelessWidget {
   final String note;
   const _PatientNoteCard({required this.note});

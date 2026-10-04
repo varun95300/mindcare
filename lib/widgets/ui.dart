@@ -2,6 +2,100 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/consultation.dart';
 import '../models/text_analysis.dart';
+import 'motion.dart';
+
+/// The MindCare mark: a solid sage tile with a quiet lotus.
+class BrandMark extends StatelessWidget {
+  final double size;
+  const BrandMark({super.key, this.size = 38});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: MindCareTheme.primary,
+        borderRadius: BorderRadius.circular(size * 0.32),
+      ),
+      child: Icon(Icons.spa_outlined,
+          color: MindCareTheme.primaryDark, size: size * 0.55),
+    );
+  }
+}
+
+/// Two or three large, almost invisible organic shapes behind page content.
+/// With [animated] they drift a few pixels over ~20 seconds (landing, login,
+/// exercises only; never behind data-heavy screens).
+class SoftBackdrop extends StatefulWidget {
+  final Widget child;
+  final bool animated;
+  const SoftBackdrop({super.key, required this.child, this.animated = false});
+
+  @override
+  State<SoftBackdrop> createState() => _SoftBackdropState();
+}
+
+class _SoftBackdropState extends State<SoftBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 22),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.animated && !Motion.reduced(context)) {
+      if (!_c.isAnimating) _c.repeat(reverse: true);
+    } else {
+      _c.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Widget _blob(Color color, double size, double dx, double dy) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, child) {
+          final t = Curves.easeInOut.transform(_c.value) - 0.5;
+          return Transform.translate(offset: Offset(dx * t, dy * t), child: child);
+        },
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [color.withValues(alpha: 0.28), color.withValues(alpha: 0)],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned(
+            top: -140, right: -120, child: _blob(MindCareTheme.primary, 520, 28, 18)),
+        Positioned(
+            bottom: -180, left: -160, child: _blob(MindCareTheme.butter, 560, -24, 22)),
+        Positioned(
+            top: 380, right: -200, child: _blob(MindCareTheme.accent, 440, -20, -26)),
+        Positioned.fill(child: widget.child),
+      ],
+    );
+  }
+}
 
 /// Layout breakpoints shared by every screen.
 class Breakpoints {
@@ -124,8 +218,14 @@ class StatTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value,
-                    style: text.displayMedium?.copyWith(fontSize: 28, height: 1.1)),
+                Builder(builder: (context) {
+                  final style =
+                      text.displayMedium?.copyWith(fontSize: 28, height: 1.1);
+                  final n = int.tryParse(value);
+                  return n == null
+                      ? Text(value, style: style)
+                      : CountUp(value: n, style: style);
+                }),
                 const SizedBox(height: 2),
                 Text(label,
                     style: text.bodyMedium?.copyWith(
@@ -223,7 +323,7 @@ class StatusPill extends StatelessWidget {
   static Color colorFor(ConsultationStatus s) {
     switch (s) {
       case ConsultationStatus.pending:
-        return const Color(0xFFB08A2E);
+        return MindCareTheme.butterDeep;
       case ConsultationStatus.accepted:
         return MindCareTheme.primaryDark;
       case ConsultationStatus.declined:
@@ -250,7 +350,7 @@ class RiskPill extends StatelessWidget {
       case RiskLevel.high:
         return MindCareTheme.error;
       case RiskLevel.moderate:
-        return const Color(0xFFB08A2E);
+        return MindCareTheme.butterDeep;
       case RiskLevel.low:
         return MindCareTheme.primaryDark;
       case RiskLevel.none:

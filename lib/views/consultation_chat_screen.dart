@@ -263,7 +263,9 @@ class _Bubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: const BoxConstraints(maxWidth: 520),
         decoration: BoxDecoration(
-          color: mine ? MindCareTheme.primary : MindCareTheme.surface,
+          color: mine
+              ? MindCareTheme.primary.withValues(alpha: 0.55)
+              : MindCareTheme.surface,
           border: mine ? null : Border.all(color: MindCareTheme.border),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
@@ -282,7 +284,7 @@ class _Bubble extends StatelessWidget {
                 text,
                 style: theme.bodyLarge?.copyWith(
                   fontSize: 14.5,
-                  color: mine ? Colors.white : MindCareTheme.textPrimary,
+                  color: MindCareTheme.textPrimary,
                 ),
               ),
             ),
@@ -291,9 +293,7 @@ class _Bubble extends StatelessWidget {
               time,
               style: TextStyle(
                 fontSize: 10.5,
-                color: mine
-                    ? Colors.white.withValues(alpha: 0.8)
-                    : MindCareTheme.textLight,
+                color: MindCareTheme.textSecondary,
               ),
             ),
           ],

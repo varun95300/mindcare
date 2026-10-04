@@ -5,19 +5,21 @@ import '../../models/consultation.dart';
 import '../../models/quiz_question.dart';
 import '../../models/screening_result.dart';
 import '../../models/text_analysis.dart';
+import '../../widgets/motion.dart';
 import '../../widgets/ui.dart';
 
-const _emotionColors = {
-  Emotion.sadness: Color(0xFF7B93A8),
-  Emotion.fear: Color(0xFFC98A7A),
-  Emotion.anger: Color(0xFFC1584A),
-  Emotion.shame: Color(0xFF9B8AA6),
-  Emotion.loneliness: Color(0xFF8E9BB5),
-  Emotion.hopelessness: Color(0xFF5E6E8C),
-  Emotion.exhaustion: Color(0xFFC4A661),
-  Emotion.overwhelm: Color(0xFFE8A87C),
-  Emotion.joy: Color(0xFF5E8F5A),
-  Emotion.calm: Color(0xFF7A9E7E),
+// Emotions reuse the palette: muted tones, no stray colours.
+final _emotionColors = <Emotion, Color>{
+  Emotion.sadness: MindCareTheme.depressionColor,
+  Emotion.fear: MindCareTheme.anxietyColor,
+  Emotion.anger: MindCareTheme.terracotta,
+  Emotion.shame: MindCareTheme.interpersonalColor,
+  Emotion.loneliness: MindCareTheme.butterDeep,
+  Emotion.hopelessness: MindCareTheme.primaryDark,
+  Emotion.exhaustion: MindCareTheme.stressColor,
+  Emotion.overwhelm: MindCareTheme.accent,
+  Emotion.joy: MindCareTheme.success,
+  Emotion.calm: MindCareTheme.primary,
 };
 
 /// Horizontal bars with a label, a value and a colour.
@@ -53,11 +55,19 @@ class _BarRow extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: max == 0 ? 0 : (value / max).clamp(0.0, 1.0),
-                minHeight: 12,
-                backgroundColor: MindCareTheme.surfaceVariant,
-                valueColor: AlwaysStoppedAnimation(color),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(
+                  begin: 0,
+                  end: max == 0 ? 0 : (value / max).clamp(0.0, 1.0),
+                ),
+                duration: Motion.of(context, const Duration(milliseconds: 650)),
+                curve: Curves.easeOut,
+                builder: (context, v, _) => LinearProgressIndicator(
+                  value: v,
+                  minHeight: 12,
+                  backgroundColor: MindCareTheme.surfaceVariant,
+                  valueColor: AlwaysStoppedAnimation(color),
+                ),
               ),
             ),
           ),

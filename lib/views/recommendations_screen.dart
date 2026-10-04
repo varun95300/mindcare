@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../widgets/ui.dart';
 import '../models/psychologist.dart';
 import '../models/screening_result.dart';
 import '../services/recommendation_service.dart';
@@ -95,24 +96,7 @@ class _PsychologistCard extends StatelessWidget {
             Row(
               children: [
                 // Avatar
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: MindCareTheme.heroGradient,
-                    borderRadius:
-                        BorderRadius.circular(MindCareTheme.radiusMd),
-                  ),
-                  child: Center(
-                    child: Text(
-                      psy.name.split(' ').map((w) => w[0]).take(2).join(),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                  ),
-                ),
+                Avatar(psy.name.replaceFirst('Dr. ', ''), size: 56),
                 const SizedBox(width: MindCareTheme.spacingMd),
 
                 // Info
