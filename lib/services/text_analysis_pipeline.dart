@@ -4,6 +4,7 @@ import '../models/text_analysis.dart';
 import 'emotion_analyzer.dart';
 import 'risk_detector.dart';
 import 'sentiment_analyzer.dart';
+import 'text_utils.dart';
 
 /// The full on-device text pipeline for one user message:
 ///
@@ -26,7 +27,10 @@ class TextAnalysisPipeline {
         _risk = risk;
 
   /// Analyse [text], optionally in the context of the [question] it answers.
-  TextAnalysis analyze(String text, {QuizQuestion? question}) {
+  TextAnalysis analyze(String rawText, {QuizQuestion? question}) {
+    // Read how people really type: "yesss", "ngl im so stressed fr", ...
+    final text = TextUtils.normalize(rawText);
+
     // 1. Sentiment (positive / negative / neutral) + keyword extraction
     final sentiment = _sentiment.analyze(text, question: question);
 

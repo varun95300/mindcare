@@ -40,8 +40,14 @@ class ChatViewModel extends ChangeNotifier {
   String? _patientId;
   bool _safetyShown = false;
 
+  /// True for the whole time a reply is being processed (not just while the
+  /// typing dots show), so overlapping sends cannot start a second pass.
+  bool _busy = false;
+  bool _finishing = false;
+
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   bool get isTyping => _isTyping;
+  bool get isBusy => _busy || _isTyping || _finishing;
   bool get isComplete => _isComplete;
   ScreeningResult? get result => _result;
   String? get screeningId => _screeningId;
@@ -153,6 +159,7 @@ class ChatViewModel extends ChangeNotifier {
   Future<void> startConversation(String patientId) async {
     _patientId = patientId;
     if (await _restoreSession(patientId)) return;
+    _busy = true;
 
     _messages.clear();
 
@@ -174,12 +181,14 @@ class ChatViewModel extends ChangeNotifier {
         questionId: _currentQuestion!.id,
       );
     }
+    _busy = false;
+    notifyListeners();
     await _saveSession();
   }
 
   /// Whether the answer buttons should be shown right now.
   bool get canQuickReply =>
-      !_isComplete && !_isTyping && _currentQuestion != null;
+      !_isComplete && !isBusy && _currentQuestion != null;
 
   ChatMessage _addUserMessage(String text) {
     final msg = ChatMessage(
@@ -197,7 +206,17 @@ class ChatViewModel extends ChangeNotifier {
   /// Replies that are not real answers (random keys, bare numbers) are not
   /// scored: the bot explains and waits for a proper answer.
   Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty || _isComplete || _isTyping) return;
+    if (text.trim().isEmpty || _isComplete || isBusy) return;
+    _busy = true;
+    try {
+      await _processMessage(text);
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _processMessage(String text) async {
 
     // 1. Add user message to chat
     final userMsg = _addUserMessage(text);
@@ -250,6 +269,16 @@ class ChatViewModel extends ChangeNotifier {
   /// The user tapped one of the answer buttons (Never … Almost always).
   Future<void> sendQuickReply(LikertResponse response) async {
     if (!canQuickReply) return;
+    _busy = true;
+    try {
+      await _processQuickReply(response);
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _processQuickReply(LikertResponse response) async {
     final question = _currentQuestion!;
 
     final label = _labelFor(response);
@@ -332,6 +361,8 @@ class ChatViewModel extends ChangeNotifier {
 
   /// Finish the conversation and generate the report.
   Future<void> _finishConversation() async {
+    if (_finishing || _isComplete) return;
+    _finishing = true;
     _isTyping = true;
     notifyListeners();
 
@@ -383,6 +414,7 @@ class ChatViewModel extends ChangeNotifier {
     }
 
     _isComplete = true;
+    _finishing = false;
     _isTyping = false;
     notifyListeners();
     await _saveSession();

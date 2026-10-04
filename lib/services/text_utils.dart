@@ -1,14 +1,75 @@
 import '../data/mental_health_lexicon.dart';
+import '../data/slang_lexicon.dart';
+import 'vocabulary.dart';
 
 /// Shared on-device text helpers used by the sentiment, emotion and risk
 /// analyzers. Pure Dart — nothing leaves the device.
 class TextUtils {
   const TextUtils._();
 
-  /// Tokenize: expand contractions, strip punctuation, split on whitespace.
-  /// [text] must already be lower-cased.
+  static final RegExp _wordPattern = RegExp(r"[a-z]+(?:'[a-z]+)?");
+  static final RegExp _afPattern = RegExp(r'\b([a-z]+)\s+(?:af|asf)\b');
+
+  /// Turn how people really type into plain words the analysers know:
+  /// stretched letters ("yesss" -> "yes"), slang and abbreviations ("ngl im
+  /// so stressed fr" -> "i am so stressed"), "X af" -> "very X", some emoji,
+  /// and slang euphemisms for self-harm. Safe to call repeatedly.
+  static String normalize(String input) {
+    var t = input.toLowerCase();
+    SlangLexicon.emoji.forEach((emoji, word) => t = t.replaceAll(emoji, word));
+    t = t.replaceAllMapped(_wordPattern, (m) => _fixWord(m[0]!));
+    t = t.replaceAllMapped(_afPattern, (m) => 'very ${m[1]}');
+    return t.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  static String _fixWord(String word) {
+    if (word.contains("'")) return word;
+    var w = word;
+    if (!Vocabulary.isKnown(w) && RegExp(r'(.)\1').hasMatch(w)) {
+      w = _repairStretched(w);
+    }
+    return SlangLexicon.map[w] ?? w;
+  }
+
+  /// "yesssss" -> "yes", "goood" -> "good", "hellooo" -> "hello". Tries
+  /// every way of shortening repeated letters, keeping the longest result
+  /// that is a real word. Unknown words just get runs capped at two.
+  static String _repairStretched(String word) {
+    final runs = <(String, int)>[];
+    for (final m in RegExp(r'(.)\1*').allMatches(word)) {
+      runs.add((m[1]!, m[0]!.length));
+    }
+    final stretched = runs.where((r) => r.$2 >= 2).length;
+    final capped = runs.map((r) => r.$1 * (r.$2 > 2 ? 2 : r.$2)).join();
+    if (stretched > 5) return capped;
+
+    final candidates = <String>[];
+    void build(int i, String acc) {
+      if (i == runs.length) {
+        candidates.add(acc);
+        return;
+      }
+      final (ch, len) = runs[i];
+      if (len == 1) {
+        build(i + 1, acc + ch);
+        return;
+      }
+      build(i + 1, acc + ch * 2);
+      build(i + 1, acc + ch);
+    }
+
+    build(0, '');
+    candidates.sort((a, b) => b.length.compareTo(a.length));
+    for (final c in candidates) {
+      if (c.length >= 2 && Vocabulary.isKnown(c)) return c;
+    }
+    return capped;
+  }
+
+  /// Tokenize: normalise slang, expand contractions, strip punctuation, split
+  /// on whitespace.
   static List<String> tokenize(String text) {
-    var processed = text
+    var processed = normalize(text)
         .replaceAll("can't", 'cannot')
         .replaceAll("won't", 'will not')
         .replaceAll("don't", 'do not')

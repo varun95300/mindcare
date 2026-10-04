@@ -96,6 +96,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
 
   void _handleSend() {
     if (_voice.isListening) _voice.stop();
+    if (_viewModel.isBusy) return; // one reply at a time
     final text = _textController.text.trim();
     if (text.isEmpty) return;
     _textController.clear();
@@ -443,7 +444,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
               child: IconButton(
                 icon: const Icon(Icons.send_rounded,
                     color: Colors.white, size: 20),
-                onPressed: _handleSend,
+                onPressed: _viewModel.isBusy ? null : _handleSend,
               ),
             ),
           ],
