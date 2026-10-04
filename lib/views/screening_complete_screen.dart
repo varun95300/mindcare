@@ -20,7 +20,7 @@ class ScreeningCompleteScreen extends StatelessWidget {
 
     if (result == null) {
       return const Scaffold(
-        body: Center(child: Text('No screening result available')),
+        body: Center(child: Text('Nothing to show here yet.')),
       );
     }
 

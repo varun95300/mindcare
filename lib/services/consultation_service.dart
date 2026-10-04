@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/consultation.dart';
 import '../models/time_block.dart';
+import 'report_generator.dart';
 import '../models/screening_result.dart';
 import '../models/quiz_question.dart';
 import '../models/domain_evidence.dart';
@@ -47,6 +48,34 @@ class ConsultationService extends ChangeNotifier {
           debugPrint('Skipping unreadable saved request: $e');
         }
       }
+      // Reports saved earlier were worded for the patient ("you"). The
+      // psychologist reads them, so rewrite those in the third person.
+      var rewrote = false;
+      for (final r in _requests) {
+        if (!r.id.startsWith('req_seed_') &&
+            ReportGenerator.narrativeNeedsRewrite(r.screeningResult)) {
+          _requests[_requests.indexOf(r)] = ConsultationRequest(
+            id: r.id,
+            patientName: r.patientName,
+            patientEmail: r.patientEmail,
+            psychologistId: r.psychologistId,
+            screeningResult: ReportGenerator.rewriteNarrative(r.screeningResult),
+            status: r.status,
+            message: r.message,
+            requestedAt: r.requestedAt,
+            scheduledAt: r.scheduledAt,
+            psychologistNote: r.psychologistNote,
+            rescheduleReason: r.rescheduleReason,
+            rescheduleRequestedAt: r.rescheduleRequestedAt,
+            messages: r.messages,
+            patientReadAt: r.patientReadAt,
+            doctorReadAt: r.doctorReadAt,
+          );
+          rewrote = true;
+        }
+      }
+      if (rewrote) _persist();
+
       // New demo requests shipped in a later version are merged in once.
       final meta = await store.readAll('meta');
       final savedVersion =
@@ -66,7 +95,7 @@ class ConsultationService extends ChangeNotifier {
   }
 
   /// Bump when [addSeedRequests] gains new demo requests.
-  static const _seedVersion = 2;
+  static const _seedVersion = 3;
 
   /// Adds seed requests that are missing and refreshes the report of ones
   /// already saved, keeping any status the psychologist already set.
@@ -390,12 +419,12 @@ class ConsultationService extends ChangeNotifier {
         answers: const [],
         keyObservations: observations,
         methodologyExplanation:
-            'This screening asked adaptive questions selected based on '
-            'previous responses, contributing evidence toward four screening '
-            'areas: Anxiety, Depression, Stress, and Interpersonal/Trauma.',
+            'The patient was asked adaptive questions selected from earlier '
+            'answers, contributing evidence toward four screening areas: '
+            'Anxiety, Depression, Stress, and Interpersonal/Trauma.',
         disclaimer:
-            'This is a screening result, not a clinical diagnosis. Only a '
-            'qualified mental-health professional can provide a diagnosis.',
+            'This is an automated screening result, not a clinical diagnosis. '
+            'It is meant to support, not replace, your own clinical assessment.',
         recommendation: recommendation,
         peakRiskLevel: risk,
         riskFlags: riskFlags,
@@ -415,11 +444,11 @@ class ConsultationService extends ChangeNotifier {
           primaryScore: 0.78,
           secondaryScore: 0.52,
           observations: const [
-            'Frequently selected higher responses for questions related to anxiety.',
+            'The patient frequently gave higher-intensity answers to questions about anxiety.',
             'Several responses showed moderate indicators across stress.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in anxiety and stress.',
+              'The patient may benefit from support focused on anxiety and stress.',
           risk: RiskLevel.moderate,
           riskFlags: const ['panic attacks'],
           emotions: const {'fear': 7.5, 'overwhelm': 3.0},
@@ -439,11 +468,11 @@ class ConsultationService extends ChangeNotifier {
           primaryScore: 0.71,
           secondaryScore: 0.28,
           observations: const [
-            'Frequently selected higher responses for questions related to stress.',
+            'The patient frequently gave higher-intensity answers to questions about stress.',
             'Responses related to depression were comparatively less prominent.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in stress management.',
+              'The patient may benefit from support focused on stress management.',
           risk: RiskLevel.low,
           emotions: const {'overwhelm': 6.0, 'exhaustion': 3.5},
         )..patientNote =
@@ -465,7 +494,7 @@ class ConsultationService extends ChangeNotifier {
             'Several responses showed moderate indicators across anxiety.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in anxiety.',
+              'The patient may benefit from support focused on anxiety.',
         ),
         status: ConsultationStatus.pending,
         message: 'Hoping to find a time to talk sometime this week, thank you.',
@@ -482,11 +511,11 @@ class ConsultationService extends ChangeNotifier {
           primaryScore: 0.82,
           secondaryScore: 0.46,
           observations: const [
-            'Frequently selected higher responses for questions related to depression.',
+            'The patient frequently gave higher-intensity answers to questions about depression.',
             'Several responses showed moderate indicators across anxiety.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in depression.',
+              'The patient may benefit from support focused on depression.',
           risk: RiskLevel.high,
           riskFlags: const ['no reason to live', 'hopeless'],
           emotions: const {'hopelessness': 8.0, 'sadness': 5.5, 'loneliness': 2.5},
@@ -506,10 +535,10 @@ class ConsultationService extends ChangeNotifier {
           primaryScore: 0.69,
           secondaryScore: 0.41,
           observations: const [
-            'Your responses showed a notably stronger pattern in Interpersonal / Trauma compared to other areas.',
+            'The patient responses showed a notably stronger pattern in Interpersonal / Trauma than in other areas.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in interpersonal difficulties.',
+              'The patient may benefit from support focused on interpersonal difficulties.',
           emotions: const {'anger': 5.0, 'loneliness': 4.0},
         )..patientNote =
             'Things at home have been tense for months and I feel like nobody listens.',
@@ -527,10 +556,10 @@ class ConsultationService extends ChangeNotifier {
           primaryScore: 0.74,
           secondaryScore: 0.33,
           observations: const [
-            'Frequently selected higher responses for questions related to interpersonal / trauma.',
+            'The patient frequently gave higher-intensity answers to questions about interpersonal / trauma.',
           ],
           recommendation:
-              'May benefit from speaking with a trauma-informed professional.',
+              'The patient may benefit from trauma-informed support.',
           risk: RiskLevel.low,
           emotions: const {'loneliness': 5.5, 'shame': 3.0},
         ),
@@ -551,7 +580,7 @@ class ConsultationService extends ChangeNotifier {
             'Several responses showed moderate indicators across anxiety and stress.',
           ],
           recommendation:
-              'May benefit from speaking with a professional experienced in exam-related anxiety.',
+              'The patient may benefit from support focused on exam-related anxiety.',
           emotions: const {'fear': 6.0, 'overwhelm': 4.5},
         )..patientNote = 'My final exams start next week and I keep freezing up.',
         status: ConsultationStatus.accepted,

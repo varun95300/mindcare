@@ -58,10 +58,8 @@ class ReportGenerator {
       keyObservations: observations,
       methodologyExplanation: methodology,
       disclaimer:
-          'This is a screening result, not a clinical diagnosis. '
-          'Only a qualified mental-health professional can provide a diagnosis. '
-          'If you are in crisis or need immediate help, please contact a mental health helpline '
-          'or visit your nearest emergency department.',
+          'This is an automated screening result, not a clinical diagnosis. '
+          'It is meant to support, not replace, your own clinical assessment.',
       recommendation: recommendation,
       peakRiskLevel: peakRisk.level,
       riskFlags: peakRisk.flags,
@@ -83,13 +81,13 @@ class ReportGenerator {
     if (ranked.isNotEmpty) {
       final names = ranked.take(2).map((e) => e.key.label.toLowerCase()).join(' and ');
       observations.add(
-        'In your own words, the feelings that came through most were $names.',
+        'In their own words, the feelings that came through most were $names.',
       );
     }
     if (peakRisk.level.index >= RiskLevel.moderate.index) {
       observations.add(
-        'Some of your wording suggested a ${peakRisk.level.label.toLowerCase()} '
-        'level of risk. A professional should look at this first.',
+        'Some of the patient wording suggested a ${peakRisk.level.label.toLowerCase()} '
+        'level of risk. This is worth reviewing first.',
       );
     }
   }
@@ -121,14 +119,14 @@ class ReportGenerator {
             .toList();
         if (domainHighAnswers.length >= 2) {
           observations.add(
-            'You frequently selected higher responses for questions related to '
+            'The patient frequently gave higher-intensity answers to questions about '
             '${domain.label.toLowerCase()}, indicating stronger indicators in this area.',
           );
         } else if (domainHighAnswers.length == 1) {
           final q = domainHighAnswers.first;
           observations.add(
-            'Your response of "${q.response.label}" to "${_shortenQuestion(q.question.text)}" '
-            'contributed evidence toward ${domain.label}.',
+            'The patient answered "${q.response.label}" when asked "${_shortenQuestion(q.question.text)}", '
+            'which contributed evidence toward ${domain.label}.',
           );
         }
       }
@@ -168,12 +166,12 @@ class ReportGenerator {
       final gap = sorted[0].value - sorted[1].value;
       if (gap > 0.25) {
         observations.add(
-          'Your responses showed a notably stronger pattern in ${sorted[0].key.label} '
-          'compared to other areas.',
+          'The patient responses showed a notably stronger pattern in ${sorted[0].key.label} '
+          'than in other areas.',
         );
       } else if (gap < 0.10) {
         observations.add(
-          'Your responses showed similar levels of indicators across '
+          'The patient responses showed similar levels of indicators across '
           '${sorted[0].key.label} and ${sorted[1].key.label}, suggesting '
           'both areas may be worth exploring.',
         );
@@ -185,14 +183,15 @@ class ReportGenerator {
 
   /// Generate methodology explanation.
   static String _generateMethodology(int questionCount) {
-    return 'The screening asked you $questionCount questions selected adaptively based on '
-        'your previous responses. Each answer contributed evidence toward four screening areas: '
-        'Anxiety, Depression, Stress, and Interpersonal/Trauma. Questions were chosen to explore '
-        'areas where your responses indicated stronger indicators, and to differentiate between '
-        'areas with similar patterns. Your answers produced the overall pattern shown above.';
+    return 'The patient was asked $questionCount questions, selected adaptively from their '
+        'earlier answers and from what they wrote in their own words. Each answer contributed '
+        'evidence toward four screening areas: Anxiety, Depression, Stress, and '
+        'Interpersonal/Trauma. Questions were chosen to explore areas where responses indicated '
+        'stronger indicators, and to tell apart areas with similar patterns. The overall pattern '
+        'is shown above.';
   }
 
-  /// Generate a next-step recommendation.
+  /// Generate a next-step recommendation for the psychologist.
   static String _generateRecommendation(
     ScreeningDomain primary,
     ScreeningDomain? secondary,
@@ -201,10 +200,50 @@ class ReportGenerator {
         ? '${primary.label.toLowerCase()} and ${secondary.label.toLowerCase()}'
         : primary.label.toLowerCase();
 
-    return 'Based on your screening profile, you may find it helpful to speak with a '
-        'qualified mental-health professional who specializes in $areas. '
-        'Remember, this screening is a starting point — a professional can provide '
-        'a thorough assessment and personalized guidance.';
+    return 'Based on this screening profile, the patient may benefit from support focused on '
+        '$areas. This screening is only a starting point; a full clinical assessment is needed '
+        'before drawing conclusions.';
+  }
+
+  /// True if the stored narrative still speaks to the patient ("you / your").
+  static bool narrativeNeedsRewrite(ScreeningResult r) {
+    // The disclaimer addresses the psychologist ("your clinical assessment"),
+    // so only the patient-facing wording of the other fields is checked.
+    final texts = [
+      ...r.keyObservations,
+      r.methodologyExplanation,
+      r.recommendation,
+    ];
+    final second = RegExp(r'\b(you|your|yours)\b', caseSensitive: false);
+    return texts.any(second.hasMatch);
+  }
+
+  /// Rebuild the narrative fields (observations, methodology, recommendation,
+  /// disclaimer) from the stored data, in the psychologist's perspective.
+  static ScreeningResult rewriteNarrative(ScreeningResult r) {
+    final evidence = DomainEvidence();
+    r.normalizedScores.forEach((d, v) => evidence.addEvidence(d, v, 1.0));
+    final emotions = <Emotion, double>{};
+    r.emotionSummary.forEach((name, v) {
+      for (final e in Emotion.values) {
+        if (e.name == name) emotions[e] = v;
+      }
+    });
+    final observations =
+        _generateObservations(r.answers, evidence, r.primaryDomain);
+    _addTextSignalObservations(
+      observations,
+      RiskResult(level: r.peakRiskLevel, flags: r.riskFlags),
+      emotions,
+    );
+    return r.withNarrative(
+      keyObservations: observations,
+      methodologyExplanation: _generateMethodology(r.answers.length),
+      recommendation: _generateRecommendation(r.primaryDomain, r.secondaryDomain),
+      disclaimer:
+          'This is an automated screening result, not a clinical diagnosis. '
+          'It is meant to support, not replace, your own clinical assessment.',
+    );
   }
 
   /// Shorten a question text for display in observations.

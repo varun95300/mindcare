@@ -102,6 +102,31 @@ class ScreeningResult {
     );
   }
 
+  /// A copy with the human-readable narrative replaced (data is unchanged).
+  ScreeningResult withNarrative({
+    required List<String> keyObservations,
+    required String methodologyExplanation,
+    required String recommendation,
+    required String disclaimer,
+  }) =>
+      ScreeningResult(
+        primaryDomain: primaryDomain,
+        secondaryDomain: secondaryDomain,
+        normalizedScores: normalizedScores,
+        severityLabels: severityLabels,
+        answers: answers,
+        keyObservations: keyObservations,
+        methodologyExplanation: methodologyExplanation,
+        disclaimer: disclaimer,
+        recommendation: recommendation,
+        completedAt: completedAt,
+        patientNote: patientNote,
+        peakRiskLevel: peakRiskLevel,
+        riskFlags: riskFlags,
+        emotionSummary: emotionSummary,
+        selectionReasons: selectionReasons,
+      );
+
   /// Number of questions answered.
   int get totalQuestions => answers.length;
 

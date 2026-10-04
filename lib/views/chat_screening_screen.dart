@@ -477,7 +477,7 @@ class _ChatScreeningScreenState extends State<ChatScreeningScreen>
               elevation: 0,
             ),
             child: Text(
-              'View My Summary',
+              'Continue',
               style: MindCareTheme.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

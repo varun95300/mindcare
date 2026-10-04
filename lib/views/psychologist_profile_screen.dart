@@ -171,7 +171,7 @@ class PsychologistProfileScreen extends StatelessWidget {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'What you shared goes directly to this psychologist so they\'re prepared for you — you won\'t see it yourself, it\'s just for them.',
+                          'What you shared goes directly to this psychologist so they\'re prepared to meet you.',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     fontSize: 12,

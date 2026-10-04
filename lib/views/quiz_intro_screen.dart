@@ -79,9 +79,9 @@ class _QuizIntroScreenState extends State<QuizIntroScreen> {
           (ctx) => AlertDialog(
             title: const Text('Start a new session?'),
             content: const Text(
-              'This deletes your saved conversation, your report and any '
-              'consultation requests you have sent. The psychologist will no '
-              'longer see them. This cannot be undone.',
+              'This deletes your saved conversation and any appointment '
+              'requests you have sent. The psychologist will no longer see '
+              'what you shared. This cannot be undone.',
             ),
             actions: [
               TextButton(

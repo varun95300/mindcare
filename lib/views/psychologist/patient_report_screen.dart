@@ -592,7 +592,7 @@ class _ReasoningTraceCard extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            '${step.responseLabel} (${step.responseValue}/4)',
+                            'Answered: ${step.responseLabel} (${step.responseValue}/4)',
                             style: Theme.of(
                               context,
                             ).textTheme.bodyMedium?.copyWith(
@@ -606,7 +606,7 @@ class _ReasoningTraceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      step.questionText,
+                      'Asked: "${step.questionText}"',
                       style: Theme.of(
                         context,
                       ).textTheme.bodyMedium?.copyWith(fontSize: 13),

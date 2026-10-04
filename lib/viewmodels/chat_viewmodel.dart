@@ -374,9 +374,9 @@ class ChatViewModel extends ChangeNotifier {
 
     await Future.delayed(const Duration(milliseconds: 800));
     await _addBotMessage(
-      "I'll prepare a summary based on our conversation. "
-      "Remember, this is just a screening — not a diagnosis. "
-      "A qualified professional is the best person to support you.",
+      "That's everything for now. What you shared goes only to the "
+      "professional you choose to reach out to. This is a screening, not a "
+      "diagnosis, and a qualified professional is the best person to support you.",
     );
 
     // Generate the screening result
