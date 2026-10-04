@@ -2,6 +2,7 @@ import '../data/afinn_lexicon.dart';
 import '../data/mental_health_lexicon.dart';
 import '../models/quiz_question.dart';
 import '../models/sentiment_result.dart';
+import 'text_utils.dart';
 
 /// Pure-Dart, on-device sentiment analyzer.
 ///
@@ -33,7 +34,7 @@ class SentimentAnalyzer {
     }
 
     final lower = text.toLowerCase();
-    final tokens = _tokenize(lower);
+    final tokens = TextUtils.tokenize(lower);
 
     // 1. Check for affirmation / denial patterns first
     final affirmationScore = _detectAffirmation(lower);
@@ -53,13 +54,13 @@ class SentimentAnalyzer {
         double score = afinnScore.toDouble();
 
         // Check for negation in the preceding 1-3 tokens
-        final negated = _isNegated(tokens, i);
+        final negated = TextUtils.isNegated(tokens, i);
         if (negated) {
           score = -score * 0.75; // Flip polarity but dampen slightly
         }
 
         // Check for intensifier in the preceding token
-        final intensifier = _getIntensifier(tokens, i);
+        final intensifier = TextUtils.intensifier(tokens, i);
         score *= intensifier;
 
         compoundScore += score;
@@ -107,59 +108,6 @@ class SentimentAnalyzer {
   }
 
   // ─── Private helpers ───────────────────────────────────────────────
-
-  /// Tokenize: lowercase, strip punctuation, split on whitespace.
-  List<String> _tokenize(String text) {
-    // Replace common contractions so negation detection works
-    var processed = text
-        .replaceAll("can't", 'cannot')
-        .replaceAll("won't", 'will not')
-        .replaceAll("don't", 'do not')
-        .replaceAll("doesn't", 'does not')
-        .replaceAll("didn't", 'did not')
-        .replaceAll("isn't", 'is not')
-        .replaceAll("aren't", 'are not')
-        .replaceAll("wasn't", 'was not')
-        .replaceAll("weren't", 'were not')
-        .replaceAll("hasn't", 'has not')
-        .replaceAll("haven't", 'have not')
-        .replaceAll("hadn't", 'had not')
-        .replaceAll("wouldn't", 'would not')
-        .replaceAll("shouldn't", 'should not')
-        .replaceAll("couldn't", 'could not')
-        .replaceAll("i'm", 'i am')
-        .replaceAll("i've", 'i have')
-        .replaceAll("i'll", 'i will')
-        .replaceAll("i'd", 'i would');
-
-    // Remove punctuation except hyphens within words
-    processed = processed.replaceAll(RegExp(r'[^\w\s-]'), ' ');
-
-    return processed
-        .split(RegExp(r'\s+'))
-        .where((t) => t.isNotEmpty)
-        .toList();
-  }
-
-  /// Check if token at [index] is preceded by a negation word
-  /// within the last 3 tokens.
-  bool _isNegated(List<String> tokens, int index) {
-    final lookback = index < 3 ? index : 3;
-    for (int j = 1; j <= lookback; j++) {
-      final prev = tokens[index - j];
-      if (MentalHealthLexicon.negators.contains(prev) || prev == 'not') {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// Get the intensifier multiplier for the token at [index].
-  double _getIntensifier(List<String> tokens, int index) {
-    if (index == 0) return 1.0;
-    final prev = tokens[index - 1];
-    return MentalHealthLexicon.intensifiers[prev] ?? 1.0;
-  }
 
   /// Detect how strongly the text affirms/agrees.
   double _detectAffirmation(String text) {

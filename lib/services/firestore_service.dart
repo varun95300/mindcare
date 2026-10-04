@@ -96,6 +96,10 @@ class FirestoreService {
       'recommendation': result.recommendation,
       'patientNote': result.patientNote,
       'totalQuestions': result.totalQuestions,
+      'peakRiskLevel': result.peakRiskLevel.name,
+      'riskFlags': result.riskFlags,
+      'emotionSummary': result.emotionSummary,
+      'selectionReasons': result.selectionReasons,
       'completedAt': FieldValue.serverTimestamp(),
     });
     return docRef.id;

@@ -1,7 +1,9 @@
 import '../models/quiz_question.dart';
 import '../models/quiz_answer.dart';
 import '../models/domain_evidence.dart';
+import '../models/text_analysis.dart';
 import '../data/question_bank.dart';
+import 'risk_detector.dart';
 
 /// The adaptive quiz engine — selects the next question based on
 /// accumulated evidence from previous answers.
@@ -13,10 +15,34 @@ import '../data/question_bank.dart';
 ///
 /// The engine never repeats a question, prioritizes uncertain areas,
 /// and can terminate early when a clear profile emerges.
+///
+/// Hybrid mode: when the chatbot feeds in [TextAnalysis] signals (via
+/// [recordSignals]) the engine blends them with the rule-based phases:
+///   1. a moderate-or-higher risk signal asks the hopelessness check (Q9)
+///   2. otherwise the dominant concern from the user's own words picks the
+///      next domain to probe
+///   3. otherwise the original evidence-based phase rules apply
 class AdaptiveEngine {
   final DomainEvidence evidence = DomainEvidence();
   final List<QuizAnswer> answers = [];
   final Set<String> _askedIds = {};
+
+  /// Decayed running total of concern signals from the user's free text.
+  final Map<ScreeningDomain, double> concernSignals = {
+    for (final d in ScreeningDomain.values) d: 0.0,
+  };
+
+  /// Highest-risk reading seen in the whole conversation.
+  RiskResult peakRisk = const RiskResult();
+
+  /// Running total of each emotion expressed across the conversation.
+  final Map<Emotion, double> emotionTotals = {};
+
+  /// Why each question was chosen, in order (for the clinician's trace).
+  final List<String> selectionReasons = [];
+
+  static const double _signalThreshold = 1.0;
+  static const double _signalDecay = 0.6;
 
   static const int minQuestions = 7;
   static const int maxQuestions = 12;
@@ -37,6 +63,26 @@ class AdaptiveEngine {
     return (answers.length / 9.0).clamp(0.0, 0.95);
   }
 
+  /// The domain the user's own words point to most strongly (or null).
+  ScreeningDomain? get dominantConcern {
+    final ranked = concernSignals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (ranked.first.value < _signalThreshold) return null;
+    return ranked.first.key;
+  }
+
+  /// Feed the analysis of a free-text reply into the hybrid selector.
+  void recordSignals(TextAnalysis analysis) {
+    for (final d in ScreeningDomain.values) {
+      concernSignals[d] = concernSignals[d]! * _signalDecay +
+          (analysis.concernScores[d] ?? 0.0);
+    }
+    peakRisk = RiskDetector.peak(peakRisk, analysis.risk);
+    analysis.emotion.scores.forEach((emotion, strength) {
+      emotionTotals[emotion] = (emotionTotals[emotion] ?? 0) + strength;
+    });
+  }
+
   /// Select the next question based on current evidence.
   QuizQuestion? selectNextQuestion() {
     if (isComplete) return null;
@@ -45,9 +91,26 @@ class AdaptiveEngine {
 
     // Phase 1: Broad screening (first 2-3 questions)
     if (asked == 0) {
+      selectionReasons.add('Broad opener to gauge general distress.');
       return _getQuestion('Q1'); // Always start with the broad opener
     }
 
+    // Hybrid: let the user's own words steer the next question.
+    final hybrid = _selectFromSignals();
+    if (hybrid != null) return hybrid;
+
+    final question = _selectByRules(asked);
+    if (question != null) {
+      selectionReasons.add(
+        'Evidence-based follow-up (phase ${question.phase}) to clarify the '
+        'current profile.',
+      );
+    }
+    return question;
+  }
+
+  /// Original rule-based phase selection.
+  QuizQuestion? _selectByRules(int asked) {
     if (asked == 1) {
       return _selectPhase1FollowUp();
     }
@@ -98,6 +161,43 @@ class AdaptiveEngine {
   }
 
   // ===== Private selection methods =====
+
+  /// Signal-driven selection (risk first, then dominant concern).
+  QuizQuestion? _selectFromSignals() {
+    // Safety first: any real risk signal gets the hopelessness check.
+    if (peakRisk.level.index >= RiskLevel.moderate.index &&
+        !_askedIds.contains('Q9')) {
+      selectionReasons.add(
+        'Risk signal (${peakRisk.level.label}) detected in the words used — '
+        'checking for hopelessness.',
+      );
+      return _getQuestion('Q9');
+    }
+
+    final concern = dominantConcern;
+    if (concern == null) return null;
+
+    // Avoid tunnelling: after two questions in a row on the same domain,
+    // hand back to the evidence-based rules so other domains get probed.
+    if (answers.length >= 2) {
+      final lastTwo = answers.sublist(answers.length - 2);
+      if (lastTwo.every((a) => a.question.primaryDomain == concern)) {
+        return null;
+      }
+    }
+
+    for (final phase in [1, 2, 3]) {
+      final question = _findUnaskedForDomain(concern, phase: phase);
+      if (question != null) {
+        selectionReasons.add(
+          'The words used point to ${concern.label.toLowerCase()} — '
+          'exploring that area next.',
+        );
+        return question;
+      }
+    }
+    return null;
+  }
 
   /// After Q1 (broad opener), pick a follow-up based on the initial response.
   QuizQuestion? _selectPhase1FollowUp() {

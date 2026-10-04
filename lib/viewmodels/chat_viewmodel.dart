@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../models/quiz_question.dart';
 import '../models/screening_result.dart';
-import '../models/sentiment_result.dart';
+import '../models/text_analysis.dart';
 import '../services/adaptive_engine.dart';
-import '../services/sentiment_analyzer.dart';
+import '../services/text_analysis_pipeline.dart';
 import '../services/report_generator.dart';
 import '../services/firestore_service.dart';
 
 /// ViewModel that drives the chatbot screening conversation.
 ///
-/// Orchestrates: Chat UI ↔ SentimentAnalyzer ↔ AdaptiveEngine ↔ Firestore.
+/// Orchestrates: Chat UI ↔ TextAnalysisPipeline (sentiment → emotion →
+/// keywords → risk → dominant concern) ↔ AdaptiveEngine ↔ Firestore.
 class ChatViewModel extends ChangeNotifier {
   final AdaptiveEngine _engine = AdaptiveEngine();
-  final SentimentAnalyzer _analyzer = const SentimentAnalyzer();
+  final TextAnalysisPipeline _pipeline = const TextAnalysisPipeline();
   final FirestoreService _firestore = FirestoreService();
 
   final List<ChatMessage> _messages = [];
@@ -23,6 +24,7 @@ class ChatViewModel extends ChangeNotifier {
   ScreeningResult? _result;
   String? _screeningId;
   String? _patientId;
+  bool _safetyShown = false;
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   bool get isTyping => _isTyping;
@@ -31,6 +33,7 @@ class ChatViewModel extends ChangeNotifier {
   String? get screeningId => _screeningId;
   QuizQuestion? get currentQuestion => _currentQuestion;
   double get progress => _engine.progress;
+  RiskLevel get peakRiskLevel => _engine.peakRisk.level;
 
   /// Start the conversation with an intro message and the first question.
   Future<void> startConversation(String patientId) async {
@@ -70,31 +73,33 @@ class ChatViewModel extends ChangeNotifier {
     _messages.add(userMsg);
     notifyListeners();
 
-    // 2. Analyze sentiment on-device
-    final sentimentResult = _analyzer.analyze(
-      text,
-      question: _currentQuestion,
-    );
+    // 2. Run the on-device pipeline: sentiment → emotion → keywords →
+    //    risk → dominant concern
+    final analysis = _pipeline.analyze(text, question: _currentQuestion);
 
-    // Update user message with sentiment data (for storage)
+    // Update user message with analysis data (for storage)
     final enrichedUserMsg = ChatMessage(
       id: userMsg.id,
       sender: 'user',
       text: text.trim(),
-      sentimentScore: sentimentResult.severityScore,
-      sentimentLabel: sentimentResult.label,
+      sentimentScore: analysis.severityScore,
+      sentimentLabel: analysis.sentiment.label,
+      emotionLabel: analysis.emotion.primary?.name,
+      riskLevel: analysis.risk.level.name,
+      dominantConcern: analysis.dominantConcern?.name,
       createdAt: userMsg.createdAt,
     );
 
     // Replace the last message with enriched version
     _messages[_messages.length - 1] = enrichedUserMsg;
 
-    // 3. Feed severity score to the adaptive engine
+    // 3. Feed the answer and the text signals to the adaptive engine
     if (_currentQuestion != null) {
       // Map severity (0-3) to LikertResponse
-      final likertValue = _mapSeverityToLikert(sentimentResult.severityScore);
+      final likertValue = _mapSeverityToLikert(analysis.severityScore);
       _engine.recordAnswer(_currentQuestion!, likertValue);
     }
+    _engine.recordSignals(analysis);
 
     // 4. Show typing indicator
     _isTyping = true;
@@ -102,10 +107,17 @@ class ChatViewModel extends ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 600));
 
     // 5. Send empathetic acknowledgment
-    final empathyReply = _generateEmpathyReply(sentimentResult);
+    final empathyReply = _generateEmpathyReply(analysis);
     if (empathyReply != null) {
       await _addBotMessage(empathyReply);
       await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    // 5b. Safety response when the message indicates high risk
+    if (analysis.risk.level.needsSafetyResponse && !_safetyShown) {
+      _safetyShown = true;
+      await _addBotMessage(_safetyMessage);
+      await Future.delayed(const Duration(milliseconds: 700));
     }
 
     // 6. Check if quiz is complete
@@ -207,8 +219,20 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
-  /// Generate a brief empathetic reply based on sentiment.
-  String? _generateEmpathyReply(SentimentResult sentiment) {
+  static const String _safetyMessage =
+      "I'm really concerned about what you just shared, and I'm glad you told "
+      "me. You deserve support right now. If you might act on these thoughts "
+      "or feel unsafe, please contact your local emergency number or a crisis "
+      "line straight away (for example Tele-MANAS 14416 in India, or 988 in "
+      "the US), or reach out to someone you trust. You don't have to go "
+      "through this alone. 💙";
+
+  /// Generate a brief empathetic reply based on sentiment and emotion.
+  String? _generateEmpathyReply(TextAnalysis analysis) {
+    final sentiment = analysis.sentiment;
+    final specific = _emotionReply(analysis.emotion);
+    if (specific != null && sentiment.label != 'positive') return specific;
+
     final replies = <String, List<String>>{
       'very_negative': [
         "I hear you, and I'm sorry you're going through that.",
@@ -239,5 +263,35 @@ class ChatViewModel extends ChangeNotifier {
     // but varied, and no need for dart:math Random).
     final index = _messages.length % options.length;
     return options[index];
+  }
+
+  /// An empathetic reply that names the emotion the user expressed.
+  /// Only used when the emotion is strong enough to be reasonably sure of.
+  String? _emotionReply(EmotionResult emotion) {
+    final primary = emotion.primary;
+    if (primary == null || emotion.intensity < 0.4 || primary.isPositive) {
+      return null;
+    }
+    switch (primary) {
+      case Emotion.sadness:
+        return "It sounds like you've been feeling really low. Thank you for telling me.";
+      case Emotion.fear:
+        return "That sounds like a lot of worry to carry. I'm glad you shared it.";
+      case Emotion.anger:
+        return "I can hear how frustrating that has been.";
+      case Emotion.shame:
+        return "It sounds like you're being very hard on yourself. That can really weigh on you.";
+      case Emotion.loneliness:
+        return "Feeling alone can be so painful. Thank you for opening up about it.";
+      case Emotion.hopelessness:
+        return "That sounds really heavy, and I'm sorry you feel this way.";
+      case Emotion.exhaustion:
+        return "It sounds like you're running on empty. That's a lot to deal with.";
+      case Emotion.overwhelm:
+        return "That sounds overwhelming. Thank you for putting it into words.";
+      case Emotion.joy:
+      case Emotion.calm:
+        return null;
+    }
   }
 }

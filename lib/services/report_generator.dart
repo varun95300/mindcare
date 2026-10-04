@@ -2,19 +2,29 @@ import '../models/quiz_question.dart';
 import '../models/quiz_answer.dart';
 import '../models/domain_evidence.dart';
 import '../models/screening_result.dart';
+import '../models/text_analysis.dart';
 import 'adaptive_engine.dart';
 
 /// Generates explainable screening reports from quiz evidence.
 class ReportGenerator {
   /// Convenience: generate a report directly from an [AdaptiveEngine].
   static ScreeningResult generateReport({required AdaptiveEngine engine}) {
-    return generate(evidence: engine.evidence, answers: engine.answers);
+    return generate(
+      evidence: engine.evidence,
+      answers: engine.answers,
+      peakRisk: engine.peakRisk,
+      emotionTotals: engine.emotionTotals,
+      selectionReasons: engine.selectionReasons,
+    );
   }
 
   /// Generate a complete screening result with explanations.
   static ScreeningResult generate({
     required DomainEvidence evidence,
     required List<QuizAnswer> answers,
+    RiskResult peakRisk = const RiskResult(),
+    Map<Emotion, double> emotionTotals = const {},
+    List<String> selectionReasons = const [],
   }) {
     final sorted = evidence.sortedScores;
     final primary = sorted[0];
@@ -32,6 +42,7 @@ class ReportGenerator {
     };
 
     final observations = _generateObservations(answers, evidence, primary.key);
+    _addTextSignalObservations(observations, peakRisk, emotionTotals);
     final methodology = _generateMethodology(answers.length);
     final recommendation = _generateRecommendation(
       primary.key,
@@ -52,7 +63,35 @@ class ReportGenerator {
           'If you are in crisis or need immediate help, please contact a mental health helpline '
           'or visit your nearest emergency department.',
       recommendation: recommendation,
+      peakRiskLevel: peakRisk.level,
+      riskFlags: peakRisk.flags,
+      emotionSummary: {for (final e in emotionTotals.entries) e.key.name: e.value},
+      selectionReasons: selectionReasons,
     );
+  }
+
+  /// Observations drawn from the free-text analysis (emotion and risk).
+  static void _addTextSignalObservations(
+    List<String> observations,
+    RiskResult peakRisk,
+    Map<Emotion, double> emotionTotals,
+  ) {
+    final ranked = emotionTotals.entries
+        .where((e) => !e.key.isPositive)
+        .toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (ranked.isNotEmpty) {
+      final names = ranked.take(2).map((e) => e.key.label.toLowerCase()).join(' and ');
+      observations.add(
+        'In your own words, the feelings that came through most were $names.',
+      );
+    }
+    if (peakRisk.level.index >= RiskLevel.moderate.index) {
+      observations.add(
+        'Some of your wording suggested a ${peakRisk.level.label.toLowerCase()} '
+        'level of risk. A professional should look at this first.',
+      );
+    }
   }
 
   /// Generate human-readable observations from the answer pattern.

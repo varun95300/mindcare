@@ -3,6 +3,7 @@ import '../../config/theme.dart';
 import '../../models/quiz_question.dart';
 import '../../models/consultation.dart';
 import '../../models/screening_result.dart';
+import '../../models/text_analysis.dart';
 
 /// Screen for psychologists to view a patient's full screening report.
 /// This is what the psychologist sees when they tap "View Report" on a
@@ -34,6 +35,13 @@ class PatientReportScreen extends StatelessWidget {
               if (result.patientNote != null &&
                   result.patientNote!.trim().isNotEmpty) ...[
                 _PatientNoteCard(note: result.patientNote!),
+                const SizedBox(height: MindCareTheme.spacingLg),
+              ],
+
+              // Risk level and emotions from the patient's free text
+              if (result.peakRiskLevel != RiskLevel.none ||
+                  result.emotionSummary.isNotEmpty) ...[
+                _RiskAndEmotionCard(result: result),
                 const SizedBox(height: MindCareTheme.spacingLg),
               ],
 
@@ -586,5 +594,94 @@ class _ReasoningTraceCard extends StatelessWidget {
     if (value >= 3) return MindCareTheme.stressColor;
     if (value >= 2) return MindCareTheme.primary;
     return MindCareTheme.success;
+  }
+}
+
+/// Risk level, triggering phrases and dominant emotions detected on-device
+/// from the patient's own words.
+class _RiskAndEmotionCard extends StatelessWidget {
+  final ScreeningResult result;
+
+  const _RiskAndEmotionCard({required this.result});
+
+  Color get _riskColor {
+    switch (result.peakRiskLevel) {
+      case RiskLevel.critical:
+      case RiskLevel.high:
+        return MindCareTheme.error;
+      case RiskLevel.moderate:
+        return MindCareTheme.warning;
+      case RiskLevel.low:
+      case RiskLevel.none:
+        return MindCareTheme.success;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final emotions = result.emotionSummary.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topEmotions = emotions.take(3).map((e) {
+      final emotion = Emotion.values.firstWhere(
+        (x) => x.name == e.key,
+        orElse: () => Emotion.sadness,
+      );
+      return emotion.label;
+    }).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(MindCareTheme.spacingLg),
+      decoration: BoxDecoration(
+        color: MindCareTheme.surface,
+        borderRadius: BorderRadius.circular(MindCareTheme.radiusLg),
+        border: Border.all(color: _riskColor.withOpacity(0.4)),
+        boxShadow: MindCareTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.health_and_safety_outlined,
+                  color: _riskColor, size: 22),
+              const SizedBox(width: MindCareTheme.spacingSm),
+              Text('Risk & Emotion Signals',
+                  style: Theme.of(context).textTheme.headlineSmall),
+            ],
+          ),
+          const SizedBox(height: MindCareTheme.spacingMd),
+          Text(
+            'Risk level in their own words: ${result.peakRiskLevel.label}',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(color: _riskColor),
+          ),
+          if (result.riskFlags.isNotEmpty) ...[
+            const SizedBox(height: MindCareTheme.spacingSm),
+            Text(
+              'Triggered by: ${result.riskFlags.map((f) => '"$f"').join(', ')}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+          if (topEmotions.isNotEmpty) ...[
+            const SizedBox(height: MindCareTheme.spacingSm),
+            Text(
+              'Main emotions expressed: ${topEmotions.join(', ')}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+          const SizedBox(height: MindCareTheme.spacingSm),
+          Text(
+            'Detected automatically on the patient device from keywords. '
+            'Please confirm clinically.',
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(fontSize: 12),
+          ),
+        ],
+      ),
+    );
   }
 }

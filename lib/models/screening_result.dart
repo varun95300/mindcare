@@ -1,5 +1,6 @@
 import 'quiz_question.dart';
 import 'quiz_answer.dart';
+import 'text_analysis.dart';
 
 /// The final screening result with full explanation data.
 class ScreeningResult {
@@ -13,6 +14,17 @@ class ScreeningResult {
   final String disclaimer;
   final String recommendation;
   final DateTime completedAt;
+
+  /// Highest risk reading seen in the user's free-text replies, and the
+  /// phrases that triggered it. Shown to the clinician only.
+  final RiskLevel peakRiskLevel;
+  final List<String> riskFlags;
+
+  /// Total strength of each emotion expressed across the conversation.
+  final Map<String, double> emotionSummary;
+
+  /// Why each question was selected (hybrid selector trace).
+  final List<String> selectionReasons;
 
   /// An optional free-text note the patient wrote in their own words,
   /// captured right after the quiz. Only ever shown to the psychologist
@@ -31,6 +43,10 @@ class ScreeningResult {
     required this.recommendation,
     DateTime? completedAt,
     this.patientNote,
+    this.peakRiskLevel = RiskLevel.none,
+    this.riskFlags = const [],
+    this.emotionSummary = const {},
+    this.selectionReasons = const [],
   }) : completedAt = completedAt ?? DateTime.now();
 
   /// Number of questions answered.
