@@ -24,6 +24,16 @@ class LocalStore {
 
   static const _prefix = 'mindcare.';
 
+  /// Re-read storage from disk / localStorage so changes made by another
+  /// browser tab or window become visible.
+  Future<void> reload() async {
+    try {
+      await (await _p).reload();
+    } catch (e) {
+      debugPrint('LocalStore reload failed: $e');
+    }
+  }
+
   /// Read a whole collection (empty list if never written or unreadable).
   Future<List<Map<String, dynamic>>> readAll(String collection) async {
     try {

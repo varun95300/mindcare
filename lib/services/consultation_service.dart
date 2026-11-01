@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../models/consultation.dart';
 import '../models/time_block.dart';
@@ -23,8 +26,54 @@ class ConsultationService extends ChangeNotifier {
   /// False until saved requests have been read (drives skeleton loaders).
   bool get loaded => _loaded;
 
+  Timer? _poll;
+
   ConsultationService() {
     _load();
+    // Pick up changes saved by another browser tab (web only).
+    if (kIsWeb) {
+      _poll = Timer.periodic(const Duration(seconds: 3), (_) => _sync());
+    }
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _sync() async {
+    if (!_loaded) return;
+    final store = LocalStore.instance;
+    await store.reload();
+    final reqs = <ConsultationRequest>[];
+    for (final doc in await store.readAll(_collection)) {
+      try {
+        reqs.add(ConsultationRequest.fromJson(doc));
+      } catch (_) {}
+    }
+    final blocks = <TimeBlock>[];
+    for (final doc in await store.readAll(_blocksCollection)) {
+      try {
+        blocks.add(TimeBlock.fromJson(doc));
+      } catch (_) {}
+    }
+    final changedReqs = jsonEncode(reqs.map((r) => r.toJson()).toList()) !=
+        jsonEncode(_requests.map((r) => r.toJson()).toList());
+    final changedBlocks = jsonEncode(blocks.map((b) => b.toJson()).toList()) !=
+        jsonEncode(_blocks.map((b) => b.toJson()).toList());
+    if (!changedReqs && !changedBlocks) return;
+    if (changedReqs) {
+      _requests
+        ..clear()
+        ..addAll(reqs);
+    }
+    if (changedBlocks) {
+      _blocks
+        ..clear()
+        ..addAll(blocks);
+    }
+    notifyListeners();
   }
 
   /// A service with no loading or seeding (used to build seed data).

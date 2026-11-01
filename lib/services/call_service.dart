@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../models/call_request.dart';
 import '../models/time_block.dart';
@@ -20,8 +23,39 @@ class CallService extends ChangeNotifier {
 
   bool get loaded => _loaded;
 
+  Timer? _poll;
+
   CallService() {
     _load();
+    // Another browser tab (e.g. the psychologist's) may have changed the
+    // saved calls, so look for changes every few seconds on web.
+    if (kIsWeb) {
+      _poll = Timer.periodic(const Duration(seconds: 3), (_) => _sync());
+    }
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _sync() async {
+    if (!_loaded) return;
+    await LocalStore.instance.reload();
+    final fresh = <CallRequest>[];
+    for (final doc in await LocalStore.instance.readAll(_collection)) {
+      try {
+        fresh.add(CallRequest.fromJson(doc));
+      } catch (_) {}
+    }
+    final a = jsonEncode(fresh.map((c) => c.toJson()).toList());
+    final b = jsonEncode(_calls.map((c) => c.toJson()).toList());
+    if (a == b) return;
+    _calls
+      ..clear()
+      ..addAll(fresh);
+    notifyListeners();
   }
 
   /// A service that does not read or write storage (tests).
