@@ -7,7 +7,9 @@ import '../../models/consultation.dart';
 import '../../models/quiz_question.dart';
 import '../../services/auth_service.dart';
 import '../../services/consultation_service.dart';
+import '../../services/call_service.dart';
 import '../../widgets/app_shell.dart';
+import '../../widgets/call_widgets.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/ui.dart';
@@ -167,6 +169,13 @@ class _PsychologistDashboardScreenState
         const NavItem(Icons.space_dashboard_outlined, 'Overview'),
         NavItem(Icons.inbox_outlined, 'Requests', badge: open),
         const NavItem(Icons.event_outlined, 'Schedule'),
+        NavItem(
+          Icons.videocam_outlined,
+          'Calls',
+          badge: psychologist == null
+              ? 0
+              : context.watch<CallService>().queueFor(psychologist.id).length,
+        ),
       ],
       selectedIndex: _tab,
       onSelect: (i) => setState(() => _tab = i),
@@ -196,6 +205,18 @@ class _PsychologistDashboardScreenState
               : switch (_tab) {
                 0 => _overview(psychologist?.name, requests),
                 1 => _requestsPage(requests),
+                3 => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const PageHeader(
+                      title: 'Video calls',
+                      subtitle:
+                          'Patients ask for a call and say how urgent it is. You choose the time.',
+                    ),
+                    if (psychologist != null)
+                      DoctorCallQueue(psychologistId: psychologist.id),
+                  ],
+                ),
                 _ => _schedulePage(requests, psychologist?.id),
               },
     );

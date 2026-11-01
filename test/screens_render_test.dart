@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mindcare/config/theme.dart';
 import 'package:mindcare/models/user_model.dart';
 import 'package:mindcare/services/auth_service.dart';
+import 'package:mindcare/services/call_service.dart';
 import 'package:mindcare/services/consultation_service.dart';
 import 'package:mindcare/services/local_store.dart';
 import 'package:mindcare/services/mood_service.dart';
@@ -40,6 +41,7 @@ Future<void> pumpScreen(
       ChangeNotifierProvider.value(value: auth),
       ChangeNotifierProvider.value(value: consultations),
       ChangeNotifierProvider(create: (_) => MoodService()),
+      ChangeNotifierProvider(create: (_) => CallService.empty()),
     ],
     child: MaterialApp(theme: MindCareTheme.lightTheme, home: screen),
   ));

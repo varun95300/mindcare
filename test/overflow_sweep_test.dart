@@ -7,6 +7,7 @@ import 'package:mindcare/config/theme.dart';
 import 'package:mindcare/data/seed_psychologists.dart';
 import 'package:mindcare/models/user_model.dart';
 import 'package:mindcare/services/auth_service.dart';
+import 'package:mindcare/services/call_service.dart';
 import 'package:mindcare/services/consultation_service.dart';
 import 'package:mindcare/services/local_store.dart';
 import 'package:mindcare/services/mood_service.dart';
@@ -229,6 +230,7 @@ void main() {
               ChangeNotifierProvider.value(value: auth),
               ChangeNotifierProvider.value(value: service),
               ChangeNotifierProvider(create: (_) => MoodService()),
+              ChangeNotifierProvider(create: (_) => CallService.empty()),
             ],
             child: MaterialApp(
               theme: MindCareTheme.lightTheme,

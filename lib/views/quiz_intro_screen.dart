@@ -16,6 +16,7 @@ import 'patient/patient_pages.dart';
 import 'chat_screening_screen.dart';
 import 'consultation_chat_screen.dart';
 import 'recommendations_screen.dart';
+import '../widgets/call_widgets.dart';
 
 /// The patient's workspace: a home page with the check-in, and an
 /// appointments page to follow, reschedule or remove consultation requests.
@@ -477,6 +478,8 @@ class _QuizIntroScreenState extends State<QuizIntroScreen> {
             ),
             const SizedBox(height: 12),
           ],
+        const SizedBox(height: 32),
+        const PatientCallsSection(),
       ]),
     );
   }

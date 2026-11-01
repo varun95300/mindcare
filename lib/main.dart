@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'config/theme.dart';
 import 'services/auth_service.dart';
+import 'services/call_service.dart';
 import 'services/consultation_service.dart';
 import 'services/mood_service.dart';
 import 'services/firestore_service.dart';
@@ -92,6 +93,7 @@ class MindCareApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => ConsultationService()),
         ChangeNotifierProvider(create: (_) => MoodService()),
+        ChangeNotifierProvider(create: (_) => CallService()),
       ],
       child: MaterialApp(
         title: 'MindCare',
