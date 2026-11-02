@@ -40,10 +40,19 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   bool _cameraOff = false;
   String? _error;
 
+  /// Latest diagnostic from Agora, shown under "Connecting...".
+  String? _status;
+
   @override
   void initState() {
     super.initState();
     _start();
+    Future.delayed(const Duration(seconds: 15), () {
+      if (mounted && !_joined && _status == null) {
+        setState(() => _status =
+            'Still connecting. Check your internet and that the Agora App ID is valid.');
+      }
+    });
   }
 
   Future<void> _start() async {
@@ -82,11 +91,35 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         onUserOffline: (connection, remoteUid, reason) {
           if (mounted) setState(() => _remoteUid = null);
         },
-        onError: (err, msg) => debugPrint('Agora error $err: $msg'),
+        onError: (err, msg) {
+          debugPrint('Agora error $err: $msg');
+          if (mounted && !_joined) {
+            setState(() => _status = 'Agora error ${err.name}: $msg');
+          }
+        },
+        onConnectionStateChanged: (connection, state, reason) {
+          debugPrint('Agora connection $state ($reason)');
+          if (mounted && !_joined && state == ConnectionStateType.connectionStateFailed) {
+            setState(() => _status = 'Connection failed: ${reason.name}. '
+                'Check the App ID is in "Testing mode" (no certificate).');
+          }
+        },
       ));
 
       await engine.enableVideo();
-      await engine.startPreview();
+      try {
+        await engine.startPreview();
+      } catch (e) {
+        // Camera busy (e.g. another tab is using it): continue audio-only.
+        debugPrint('Camera unavailable, continuing without it: $e');
+        if (mounted) {
+          setState(() {
+            _cameraOff = true;
+            _status = 'Camera unavailable - joining with audio only.';
+          });
+        }
+        await engine.disableVideo();
+      }
       await engine.joinChannel(
         token: '', // testing-mode project: no token needed
         channelId: widget.channelName,
@@ -105,7 +138,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     } catch (e) {
       debugPrint('Could not start call: $e');
       if (mounted) {
-        setState(() => _error = 'Could not start the call. Please try again.');
+        setState(() => _error = 'Could not start the call: $e');
       }
     }
   }
@@ -153,6 +186,17 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   : 'Connecting...',
               style: const TextStyle(color: Colors.white70, fontSize: 16),
             ),
+            if (_status != null) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _status!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.amber, fontSize: 13),
+                ),
+              ),
+            ],
           ],
         ),
       );
