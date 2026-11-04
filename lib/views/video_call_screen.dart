@@ -38,6 +38,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   bool _joined = false;
   bool _muted = false;
   bool _cameraOff = false;
+
+  /// True if this device could not open its camera. It can still watch the
+  /// other person; it just does not send video.
+  bool _cameraFailed = false;
+
+  /// False while the other person's camera is off or not sending.
+  bool _remoteVideoOn = false;
   String? _error;
 
   /// Latest diagnostic from Agora, shown under "Connecting...".
@@ -89,7 +96,19 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           if (mounted) setState(() => _remoteUid = remoteUid);
         },
         onUserOffline: (connection, remoteUid, reason) {
-          if (mounted) setState(() => _remoteUid = null);
+          if (mounted) {
+            setState(() {
+              _remoteUid = null;
+              _remoteVideoOn = false;
+            });
+          }
+        },
+        onRemoteVideoStateChanged:
+            (connection, remoteUid, state, reason, elapsed) {
+          if (!mounted) return;
+          setState(() => _remoteVideoOn =
+              state == RemoteVideoState.remoteVideoStateDecoding ||
+                  state == RemoteVideoState.remoteVideoStateStarting);
         },
         onError: (err, msg) {
           debugPrint('Agora error $err: $msg');
@@ -118,15 +137,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             _status = 'Camera unavailable - joining with audio only.';
           });
         }
-        await engine.disableVideo();
+        _cameraFailed = true;
       }
       await engine.joinChannel(
         token: '', // testing-mode project: no token needed
         channelId: widget.channelName,
         uid: 0,
-        options: const ChannelMediaOptions(
+        options: ChannelMediaOptions(
           clientRoleType: ClientRoleType.clientRoleBroadcaster,
-          publishCameraTrack: true,
+          publishCameraTrack: !_cameraFailed,
           publishMicrophoneTrack: true,
           autoSubscribeAudio: true,
           autoSubscribeVideo: true,
@@ -173,6 +192,23 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   Widget _remoteView() {
     final engine = _engine;
+    if (engine != null && _remoteUid != null && !_remoteVideoOn) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.videocam_off, color: Colors.white54, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              '${widget.otherName} is connected, but their camera is off '
+              'or unavailable.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 15),
+            ),
+          ],
+        ),
+      );
+    }
     if (engine == null || _remoteUid == null) {
       return Center(
         child: Column(
