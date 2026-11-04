@@ -24,6 +24,7 @@ class CallService extends ChangeNotifier {
   bool get loaded => _loaded;
 
   Timer? _poll;
+  StreamSubscription<String>? _remote;
 
   CallService() {
     _load();
@@ -32,11 +33,16 @@ class CallService extends ChangeNotifier {
     if (kIsWeb) {
       _poll = Timer.periodic(const Duration(seconds: 3), (_) => _sync());
     }
+    // Another device changed the shared calls.
+    _remote = LocalStore.instance.remoteChanges.listen((c) {
+      if (c == _collection) _sync();
+    });
   }
 
   @override
   void dispose() {
     _poll?.cancel();
+    _remote?.cancel();
     super.dispose();
   }
 

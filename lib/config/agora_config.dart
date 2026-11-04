@@ -11,7 +11,7 @@ class AgoraConfig {
 
   static const String appId = String.fromEnvironment(
     'AGORA_APP_ID',
-    defaultValue: '',
+    defaultValue: '5e61b1c994634e179959838528ae9d7a', // Testing-mode project
   );
 
   static bool get isConfigured => appId.isNotEmpty;

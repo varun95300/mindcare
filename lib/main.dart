@@ -8,6 +8,7 @@ import 'services/call_service.dart';
 import 'services/consultation_service.dart';
 import 'services/mood_service.dart';
 import 'services/firestore_service.dart';
+import 'services/local_store.dart';
 import 'models/user_model.dart';
 import 'widgets/feedback.dart';
 import 'widgets/motion.dart';
@@ -25,6 +26,10 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase init failed (local accounts still work): $e');
   }
+
+  // Share consultations, calls and accounts between devices through
+  // Firestore. Never throws; falls back to this device only.
+  await LocalStore.instance.initCloud();
 
   // Seed psychologist data to Firestore (idempotent). Not awaited: if
   // Firestore is slow or unreachable, the app must still start.

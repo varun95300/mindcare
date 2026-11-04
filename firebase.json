@@ -1,1 +1,22 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"mindcare-94b7c","configurations":{"web":"1:1056168021067:web:c567fe8fdcaaf32d2491ce"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "mindcare-94b7c",
+          "configurations": {
+            "web": "1:1056168021067:web:c567fe8fdcaaf32d2491ce"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  }
+}

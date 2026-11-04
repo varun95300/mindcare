@@ -27,9 +27,14 @@ class ConsultationService extends ChangeNotifier {
   bool get loaded => _loaded;
 
   Timer? _poll;
+  StreamSubscription<String>? _remote;
 
   ConsultationService() {
     _load();
+    // Another device changed the shared requests, chat or time blocks.
+    _remote = LocalStore.instance.remoteChanges.listen((c) {
+      if (c == _collection || c == _blocksCollection) _sync();
+    });
     // Pick up changes saved by another browser tab (web only).
     if (kIsWeb) {
       _poll = Timer.periodic(const Duration(seconds: 3), (_) => _sync());
@@ -39,6 +44,7 @@ class ConsultationService extends ChangeNotifier {
   @override
   void dispose() {
     _poll?.cancel();
+    _remote?.cancel();
     super.dispose();
   }
 
