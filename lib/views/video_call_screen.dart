@@ -90,9 +90,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
       engine.registerEventHandler(RtcEngineEventHandler(
         onJoinChannelSuccess: (connection, elapsed) {
+          debugPrint('Agora: joined channel ${connection.channelId} as uid ${connection.localUid} (${elapsed}ms)');
           if (mounted) setState(() => _joined = true);
         },
         onUserJoined: (connection, remoteUid, elapsed) {
+          debugPrint('Agora: remote user $remoteUid joined');
           if (mounted) setState(() => _remoteUid = remoteUid);
         },
         onUserOffline: (connection, remoteUid, reason) {
@@ -142,7 +144,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       await engine.joinChannel(
         token: '', // testing-mode project: no token needed
         channelId: widget.channelName,
-        uid: 0,
+        uid: widget.asDoctor ? 1 : 2,
         options: ChannelMediaOptions(
           clientRoleType: ClientRoleType.clientRoleBroadcaster,
           publishCameraTrack: !_cameraFailed,
@@ -221,6 +223,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   ? 'Waiting for ${widget.otherName} to join...'
                   : 'Connecting...',
               style: const TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Channel: ${widget.channelName}',
+              style: const TextStyle(color: Colors.white38, fontSize: 11),
             ),
             if (_status != null) ...[
               const SizedBox(height: 12),
