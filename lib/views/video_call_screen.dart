@@ -110,7 +110,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           if (!mounted) return;
           final on = state == RemoteVideoState.remoteVideoStateDecoding ||
               state == RemoteVideoState.remoteVideoStateStarting;
-          if (on != _remoteVideoOn) setState(() => _remoteVideoOn = on);
+          if (on != _remoteVideoOn) {
+            setState(() {
+              _remoteVideoOn = on;
+              if (on) {
+                _remoteController = null;
+                _remoteEpoch++;
+              }
+            });
+          }
 
         },
         onError: (err, msg) {
@@ -199,6 +207,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   VideoViewController? _remoteController;
   int? _remoteControllerUid;
   VideoViewController? _localController;
+  int _remoteEpoch = 0;
 
   Widget _remoteView() {
     final engine = _engine;
@@ -247,7 +256,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       fit: StackFit.expand,
       children: [
         AgoraVideoView(
-          key: ValueKey('remote_$_remoteUid'),
+          key: ValueKey('remote_${_remoteUid}_$_remoteEpoch'),
           controller: _remoteController!,
         ),
         if (!_remoteVideoOn)
@@ -322,75 +331,86 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF1C1D19),
+      // On web a video is a browser element that paints over any Flutter
+      // widget placed on top of it (the buttons vanished and could not be
+      // tapped). So nothing overlaps a video: the other person's video has
+      // its own area and the controls sit in a separate bar below it.
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            Positioned.fill(child: _remoteView()),
-            // Name tag
-            Positioned(
-              top: 16,
-              left: 16,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black45,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(widget.otherName,
-                    style: const TextStyle(color: Colors.white)),
-              ),
-            ),
-            // Self preview
-            Positioned(
-              top: 16,
-              right: 16,
-              width: 110,
-              height: 150,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: _localView(),
-              ),
-            ),
-            // Controls
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 28,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _RoundButton(
-                    icon: _muted ? Icons.mic_off : Icons.mic,
-                    active: _muted,
-                    onTap: () async {
-                      setState(() => _muted = !_muted);
-                      await _engine?.muteLocalAudioStream(_muted);
-                    },
-                  ),
-                  const SizedBox(width: 20),
-                  _RoundButton(
-                    icon: Icons.call_end,
-                    color: MindCareTheme.terracotta,
-                    size: 64,
-                    onTap: () => _leave(finish: true),
-                  ),
-                  const SizedBox(width: 20),
-                  _RoundButton(
-                    icon: _cameraOff ? Icons.videocam_off : Icons.videocam,
-                    active: _cameraOff,
-                    onTap: () async {
-                      setState(() => _cameraOff = !_cameraOff);
-                      await _engine?.muteLocalVideoStream(_cameraOff);
-                    },
-                  ),
-                  if (!kIsWeb) ...[
-                    const SizedBox(width: 20),
-                    _RoundButton(
-                      icon: Icons.cameraswitch,
-                      onTap: () => _engine?.switchCamera(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
+                    child: Text(widget.otherName,
+                        style: const TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: ClipRect(child: _remoteView())),
+            Container(
+              color: const Color(0xFF1C1D19),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 112,
+                    height: 84,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: _localView(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 16,
+                      runSpacing: 8,
+                      children: [
+                        _RoundButton(
+                          icon: _muted ? Icons.mic_off : Icons.mic,
+                          active: _muted,
+                          onTap: () async {
+                            setState(() => _muted = !_muted);
+                            await _engine?.muteLocalAudioStream(_muted);
+                          },
+                        ),
+                        _RoundButton(
+                          icon: Icons.call_end,
+                          color: MindCareTheme.terracotta,
+                          size: 64,
+                          onTap: () => _leave(finish: true),
+                        ),
+                        _RoundButton(
+                          icon: _cameraOff ? Icons.videocam_off : Icons.videocam,
+                          active: _cameraOff,
+                          onTap: () async {
+                            setState(() {
+                              _cameraOff = !_cameraOff;
+                              // Re-attach the preview when the camera returns.
+                              if (!_cameraOff) _localController = null;
+                            });
+                            await _engine?.muteLocalVideoStream(_cameraOff);
+                          },
+                        ),
+                        if (!kIsWeb)
+                          _RoundButton(
+                            icon: Icons.cameraswitch,
+                            onTap: () => _engine?.switchCamera(),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
