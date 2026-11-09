@@ -349,7 +349,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                       color: Colors.white12,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(widget.otherName,
+                    child: Text('${widget.otherName} · v5',
                         style: const TextStyle(color: Colors.white)),
                   ),
                 ],
