@@ -108,9 +108,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         onRemoteVideoStateChanged:
             (connection, remoteUid, state, reason, elapsed) {
           if (!mounted) return;
-          setState(() => _remoteVideoOn =
-              state == RemoteVideoState.remoteVideoStateDecoding ||
-                  state == RemoteVideoState.remoteVideoStateStarting);
+          final on = state == RemoteVideoState.remoteVideoStateDecoding ||
+              state == RemoteVideoState.remoteVideoStateStarting;
+          if (on != _remoteVideoOn) setState(() => _remoteVideoOn = on);
+
         },
         onError: (err, msg) {
           debugPrint('Agora error $err: $msg');
@@ -192,25 +193,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     super.dispose();
   }
 
+  // One controller per video view, created once. Creating a controller inside
+  // build() tears the video down on every rebuild, which froze the page and
+  // made video work only one way.
+  VideoViewController? _remoteController;
+  int? _remoteControllerUid;
+  VideoViewController? _localController;
+
   Widget _remoteView() {
     final engine = _engine;
-    if (engine != null && _remoteUid != null && !_remoteVideoOn) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.videocam_off, color: Colors.white54, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              '${widget.otherName} is connected, but their camera is off '
-              'or unavailable.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 15),
-            ),
-          ],
-        ),
-      );
-    }
     if (engine == null || _remoteUid == null) {
       return Center(
         child: Column(
@@ -244,12 +235,35 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         ),
       );
     }
-    return AgoraVideoView(
-      controller: VideoViewController.remote(
+    if (_remoteController == null || _remoteControllerUid != _remoteUid) {
+      _remoteControllerUid = _remoteUid;
+      _remoteController = VideoViewController.remote(
         rtcEngine: engine,
         canvas: VideoCanvas(uid: _remoteUid),
         connection: RtcConnection(channelId: widget.channelName),
-      ),
+      );
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        AgoraVideoView(
+          key: ValueKey('remote_$_remoteUid'),
+          controller: _remoteController!,
+        ),
+        if (!_remoteVideoOn)
+          IgnorePointer(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 72),
+                child: Text(
+                  "${widget.otherName}'s camera is off",
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -263,11 +277,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         ),
       );
     }
+    _localController ??= VideoViewController(
+      rtcEngine: engine,
+      canvas: const VideoCanvas(uid: 0),
+    );
     return AgoraVideoView(
-      controller: VideoViewController(
-        rtcEngine: engine,
-        canvas: const VideoCanvas(uid: 0),
-      ),
+      key: const ValueKey('local'),
+      controller: _localController!,
     );
   }
 
