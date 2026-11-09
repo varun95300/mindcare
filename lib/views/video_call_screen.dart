@@ -6,11 +6,16 @@ import 'package:provider/provider.dart';
 import '../config/agora_config.dart';
 import '../config/theme.dart';
 import '../services/call_service.dart';
+import '../services/web_call.dart';
 
 /// Live video call between a patient and their psychologist.
 ///
 /// Both sides open this screen with the same [channelName] (stored on the
 /// call request), so Agora puts them in the same room.
+///
+/// On web the call runs through Agora's Web SDK directly (WebCallSession);
+/// the Flutter plugin's web wrapper could not keep video inside the page. On
+/// phones and desktop the Agora Flutter plugin is used.
 class VideoCallScreen extends StatefulWidget {
   final String callId;
   final String channelName;
@@ -33,22 +38,27 @@ class VideoCallScreen extends StatefulWidget {
 }
 
 class _VideoCallScreenState extends State<VideoCallScreen> {
-  RtcEngine? _engine;
-  int? _remoteUid;
+  // Shared by both paths.
   bool _joined = false;
+  bool _remoteHere = false;
+  bool _remoteVideoOn = false;
   bool _muted = false;
   bool _cameraOff = false;
-
-  /// True if this device could not open its camera. It can still watch the
-  /// other person; it just does not send video.
-  bool _cameraFailed = false;
-
-  /// False while the other person's camera is off or not sending.
-  bool _remoteVideoOn = false;
   String? _error;
 
-  /// Latest diagnostic from Agora, shown under "Connecting...".
+  /// Latest note from Agora, shown next to the name.
   String? _status;
+
+  // Web path.
+  WebCallSession? _web;
+
+  // Phone / desktop path.
+  RtcEngine? _engine;
+  int? _remoteUid;
+  bool _cameraFailed = false;
+  VideoViewController? _remoteController;
+  int? _remoteControllerUid;
+  VideoViewController? _localController;
 
   @override
   void initState() {
@@ -57,7 +67,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     Future.delayed(const Duration(seconds: 15), () {
       if (mounted && !_joined && _status == null) {
         setState(() => _status =
-            'Still connecting. Check your internet and that the Agora App ID is valid.');
+            'Still connecting. Check your internet connection.');
       }
     });
   }
@@ -70,15 +80,71 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           '--dart-define=AGORA_APP_ID=...).');
       return;
     }
-    try {
-      if (!kIsWeb) {
-        final statuses =
-            await [Permission.camera, Permission.microphone].request();
-        if (statuses.values.any((s) => !s.isGranted)) {
-          setState(() =>
-              _error = 'Camera and microphone access is needed for the call.');
-          return;
+    if (kIsWeb) {
+      await _startWeb();
+    } else {
+      await _startNative();
+    }
+  }
+
+  // ─── Web ─────────────────────────────────────────────────────────
+
+  Future<void> _startWeb() async {
+    final session = WebCallSession(onEvent: _onWebEvent);
+    setState(() => _web = session);
+    await session.join(
+      appId: AgoraConfig.appId,
+      channel: widget.channelName,
+      uid: widget.asDoctor ? 1 : 2,
+    );
+  }
+
+  void _onWebEvent(String event) {
+    debugPrint('Call event: $event');
+    if (!mounted) return;
+    switch (event) {
+      case 'joined':
+        setState(() => _joined = true);
+        context.read<CallService>().markActive(widget.callId);
+      case 'remote-joined':
+        setState(() => _remoteHere = true);
+      case 'remote-left':
+        setState(() {
+          _remoteHere = false;
+          _remoteVideoOn = false;
+        });
+      case 'remote-video:on':
+        setState(() {
+          _remoteHere = true;
+          _remoteVideoOn = true;
+        });
+      case 'remote-video:off':
+        setState(() => _remoteVideoOn = false);
+      default:
+        if (event.startsWith('error:camera')) {
+          setState(() {
+            _cameraOff = true;
+            _status = 'Camera unavailable - others cannot see you. '
+                'Check the camera shutter and browser permission.';
+          });
+        } else if (event.startsWith('error:microphone')) {
+          setState(() => _status = 'Microphone unavailable.');
+        } else if (event.startsWith('error:')) {
+          setState(() => _status = event.substring(6));
         }
+    }
+  }
+
+  // ─── Phone / desktop ─────────────────────────────────────────────
+
+  Future<void> _startNative() async {
+    try {
+      final statuses =
+          await [Permission.camera, Permission.microphone].request();
+      if (statuses.values.any((s) => !s.isGranted)) {
+        setState(() =>
+            _error = 'Camera and microphone access is needed for the call.');
+        return;
       }
 
       final engine = createAgoraRtcEngine();
@@ -90,17 +156,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
       engine.registerEventHandler(RtcEngineEventHandler(
         onJoinChannelSuccess: (connection, elapsed) {
-          debugPrint('Agora: joined channel ${connection.channelId} as uid ${connection.localUid} (${elapsed}ms)');
           if (mounted) setState(() => _joined = true);
         },
         onUserJoined: (connection, remoteUid, elapsed) {
-          debugPrint('Agora: remote user $remoteUid joined');
-          if (mounted) setState(() => _remoteUid = remoteUid);
+          if (mounted) {
+            setState(() {
+              _remoteUid = remoteUid;
+              _remoteHere = true;
+            });
+          }
         },
         onUserOffline: (connection, remoteUid, reason) {
           if (mounted) {
             setState(() {
               _remoteUid = null;
+              _remoteHere = false;
               _remoteVideoOn = false;
             });
           }
@@ -110,28 +180,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           if (!mounted) return;
           final on = state == RemoteVideoState.remoteVideoStateDecoding ||
               state == RemoteVideoState.remoteVideoStateStarting;
-          if (on != _remoteVideoOn) {
-            setState(() {
-              _remoteVideoOn = on;
-              if (on) {
-                _remoteController = null;
-                _remoteEpoch++;
-              }
-            });
-          }
-
+          if (on != _remoteVideoOn) setState(() => _remoteVideoOn = on);
         },
         onError: (err, msg) {
           debugPrint('Agora error $err: $msg');
           if (mounted && !_joined) {
             setState(() => _status = 'Agora error ${err.name}: $msg');
-          }
-        },
-        onConnectionStateChanged: (connection, state, reason) {
-          debugPrint('Agora connection $state ($reason)');
-          if (mounted && !_joined && state == ConnectionStateType.connectionStateFailed) {
-            setState(() => _status = 'Connection failed: ${reason.name}. '
-                'Check the App ID is in "Testing mode" (no certificate).');
           }
         },
       ));
@@ -140,7 +194,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       try {
         await engine.startPreview();
       } catch (e) {
-        // Camera busy (e.g. another tab is using it): continue audio-only.
         debugPrint('Camera unavailable, continuing without it: $e');
         if (mounted) {
           setState(() {
@@ -173,7 +226,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
   }
 
+  // ─── Leaving ─────────────────────────────────────────────────────
+
   Future<void> _leave({bool finish = false}) async {
+    final web = _web;
+    _web = null;
+    if (web != null) await web.leave();
+
     final engine = _engine;
     _engine = null;
     if (engine != null) {
@@ -193,6 +252,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
+    _web?.leave();
+    _web = null;
     final engine = _engine;
     _engine = null;
     if (engine != null) {
@@ -201,48 +262,26 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     super.dispose();
   }
 
-  // One controller per video view, created once. Creating a controller inside
-  // build() tears the video down on every rebuild, which froze the page and
-  // made video work only one way.
-  VideoViewController? _remoteController;
-  int? _remoteControllerUid;
-  VideoViewController? _localController;
-  int _remoteEpoch = 0;
+  // ─── Views ───────────────────────────────────────────────────────
+
+  /// What to tell the user about the call right now (null when all is well).
+  String? get _headline {
+    if (!_joined) return 'Connecting...';
+    if (!_remoteHere) return 'Waiting for ${widget.otherName} to join...';
+    if (!_remoteVideoOn) return "${widget.otherName}'s camera is off";
+    return null;
+  }
 
   Widget _remoteView() {
+    if (kIsWeb) {
+      final web = _web;
+      return web == null
+          ? const SizedBox.shrink()
+          : ClipRect(child: web.remoteView);
+    }
     final engine = _engine;
     if (engine == null || _remoteUid == null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(color: Colors.white54),
-            const SizedBox(height: 20),
-            Text(
-              _joined
-                  ? 'Waiting for ${widget.otherName} to join...'
-                  : 'Connecting...',
-              style: const TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Channel: ${widget.channelName}',
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
-            ),
-            if (_status != null) ...[
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  _status!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.amber, fontSize: 13),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
+      return const SizedBox.shrink();
     }
     if (_remoteController == null || _remoteControllerUid != _remoteUid) {
       _remoteControllerUid = _remoteUid;
@@ -252,40 +291,33 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         connection: RtcConnection(channelId: widget.channelName),
       );
     }
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        AgoraVideoView(
-          key: ValueKey('remote_${_remoteUid}_$_remoteEpoch'),
-          controller: _remoteController!,
-        ),
-        if (!_remoteVideoOn)
-          IgnorePointer(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 72),
-                child: Text(
-                  "${widget.otherName}'s camera is off",
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ),
-            ),
-          ),
-      ],
+    return AgoraVideoView(
+      key: ValueKey('remote_$_remoteUid'),
+      controller: _remoteController!,
     );
   }
 
   Widget _localView() {
-    final engine = _engine;
-    if (engine == null || !_joined || _cameraOff) {
-      return Container(
-        color: Colors.black54,
-        child: const Center(
-          child: Icon(Icons.videocam_off, color: Colors.white54, size: 32),
-        ),
+    final cameraOffBox = Container(
+      color: Colors.black54,
+      child: const Center(
+        child: Icon(Icons.videocam_off, color: Colors.white54, size: 28),
+      ),
+    );
+    if (kIsWeb) {
+      final web = _web;
+      if (web == null) return cameraOffBox;
+      // Keep the box alive when the camera is off (Agora draws inside it).
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          web.localView,
+          if (_cameraOff) cameraOffBox,
+        ],
       );
     }
+    final engine = _engine;
+    if (engine == null || !_joined || _cameraOff) return cameraOffBox;
     _localController ??= VideoViewController(
       rtcEngine: engine,
       canvas: const VideoCanvas(uid: 0),
@@ -294,6 +326,27 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       key: const ValueKey('local'),
       controller: _localController!,
     );
+  }
+
+  void _toggleMic() {
+    setState(() => _muted = !_muted);
+    if (kIsWeb) {
+      _web?.setMicMuted(_muted);
+    } else {
+      _engine?.muteLocalAudioStream(_muted);
+    }
+  }
+
+  void _toggleCamera() {
+    setState(() {
+      _cameraOff = !_cameraOff;
+      if (!_cameraOff) _localController = null;
+    });
+    if (kIsWeb) {
+      _web?.setCameraOff(_cameraOff);
+    } else {
+      _engine?.muteLocalVideoStream(_cameraOff);
+    }
   }
 
   @override
@@ -329,18 +382,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       );
     }
 
+    final headline = _headline;
+
     return Scaffold(
       backgroundColor: const Color(0xFF1C1D19),
-      // On web a video is a browser element that paints over any Flutter
-      // widget placed on top of it (the buttons vanished and could not be
-      // tapped). So nothing overlaps a video: the other person's video has
-      // its own area and the controls sit in a separate bar below it.
+      // Nothing is drawn on top of a video (on web a video is a browser
+      // element that would hide it): the other person's video has its own
+      // area and the controls sit in a separate bar below it.
       body: SafeArea(
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
                     padding:
@@ -349,9 +406,17 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                       color: Colors.white12,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text('${widget.otherName} · v5',
+                    child: Text('${widget.otherName} · v6',
                         style: const TextStyle(color: Colors.white)),
                   ),
+                  if (headline != null)
+                    Text(headline,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 14)),
+                  if (_status != null)
+                    Text(_status!,
+                        style: const TextStyle(
+                            color: Colors.amber, fontSize: 13)),
                 ],
               ),
             ),
@@ -380,10 +445,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                         _RoundButton(
                           icon: _muted ? Icons.mic_off : Icons.mic,
                           active: _muted,
-                          onTap: () async {
-                            setState(() => _muted = !_muted);
-                            await _engine?.muteLocalAudioStream(_muted);
-                          },
+                          onTap: _toggleMic,
                         ),
                         _RoundButton(
                           icon: Icons.call_end,
@@ -392,16 +454,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                           onTap: () => _leave(finish: true),
                         ),
                         _RoundButton(
-                          icon: _cameraOff ? Icons.videocam_off : Icons.videocam,
+                          icon:
+                              _cameraOff ? Icons.videocam_off : Icons.videocam,
                           active: _cameraOff,
-                          onTap: () async {
-                            setState(() {
-                              _cameraOff = !_cameraOff;
-                              // Re-attach the preview when the camera returns.
-                              if (!_cameraOff) _localController = null;
-                            });
-                            await _engine?.muteLocalVideoStream(_cameraOff);
-                          },
+                          onTap: _toggleCamera,
                         ),
                         if (!kIsWeb)
                           _RoundButton(
@@ -456,4 +512,3 @@ class _RoundButton extends StatelessWidget {
     );
   }
 }
-
